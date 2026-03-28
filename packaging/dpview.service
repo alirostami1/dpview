@@ -1,0 +1,12 @@
+[Unit]
+Description=DPview local preview server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/bin/dpview --root %h/docs --bind 127.0.0.1 --port 8090
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

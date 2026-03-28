@@ -1,0 +1,157 @@
+package render
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"codeberg.org/aros/dpview.git/internal/api"
+	"codeberg.org/aros/dpview.git/internal/files"
+)
+
+func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "sample.md")
+	content := strings.Join([]string{
+		"# Heading",
+		"",
+		"- item",
+		"- [x] done",
+		"",
+		"| a | b |",
+		"| - | - |",
+		"| 1 | 2 |",
+		"",
+		"```go",
+		"println(\"hi\")",
+		"```",
+		"",
+		"[link](https://example.com)",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "sample.md", Kind: files.KindMarkdown}, path)
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+
+	checks := []string{"<h1>Heading</h1>", "<ul>", "<table>", "<pre><code", "type=\"checkbox\"", "href=\"https://example.com\""}
+	for _, check := range checks {
+		if !strings.Contains(preview.HTML, check) {
+			t.Fatalf("Render() HTML missing %q", check)
+		}
+	}
+}
+
+func TestRenderMarkdownSanitizesUnsafeLinks(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "unsafe.md")
+	if err := os.WriteFile(path, []byte(`[bad](javascript:alert(1))`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "unsafe.md", Kind: files.KindMarkdown}, path)
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if strings.Contains(preview.HTML, "javascript:alert") {
+		t.Fatalf("Render() HTML should sanitize javascript URLs: %q", preview.HTML)
+	}
+}
+
+func TestRenderTypstMissingBinaryReturnsClearError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "demo.typ")
+	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	svc := &Service{
+		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
+		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: &typstRenderer{}},
+	}
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	if preview.Error == nil || preview.Error.Code != "typst_unavailable" {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+}
+
+func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
+	tempRoot := t.TempDir()
+	path := filepath.Join(tempRoot, "demo.typ")
+	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	typst := &typstRenderer{
+		tempRoot: tempRoot,
+		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
+		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
+			pageOne := strings.ReplaceAll(args[2], "{p}", "1")
+			pageTwo := strings.ReplaceAll(args[2], "{p}", "2")
+			if err := os.WriteFile(pageOne, []byte("<svg><text>one</text></svg>"), 0o644); err != nil {
+				return nil, nil, err
+			}
+			if err := os.WriteFile(pageTwo, []byte("<svg><text>two</text></svg>"), 0o644); err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, nil
+		}),
+	}
+	svc := &Service{
+		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
+		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if !strings.Contains(preview.HTML, "data-page=\"1\"") || !strings.Contains(preview.HTML, "<svg><text>two</text></svg>") {
+		t.Fatalf("Render() HTML = %q", preview.HTML)
+	}
+}
+
+func TestRenderTypstCompileFailureIncludesStderr(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "demo.typ")
+	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	typst := &typstRenderer{
+		tempRoot: t.TempDir(),
+		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
+		runner: mockRunner(func(_ context.Context, _ string, _ ...string) ([]byte, []byte, error) {
+			return nil, []byte("compile failed"), errors.New("exit status 1")
+		}),
+	}
+	svc := &Service{
+		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
+		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	if preview.Error == nil || preview.Error.Code != "typst_compile_failed" || !strings.Contains(preview.Error.Detail, "compile failed") {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+}
+
+type mockRunner func(context.Context, string, ...string) ([]byte, []byte, error)
+
+func (m mockRunner) Run(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+	return m(ctx, name, args...)
+}
