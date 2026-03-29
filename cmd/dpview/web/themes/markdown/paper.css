@@ -1,12 +1,18 @@
+.markdown-preview {
+  font: 17px/1.75 Georgia, "Times New Roman", serif;
+}
+
 .markdown-theme {
   font: 17px/1.75 Georgia, "Times New Roman", serif;
 }
 
+body[data-theme="light"] .markdown-preview,
 body[data-theme="light"] .markdown-theme {
   color: #202020;
   background: #fffdf8;
 }
 
+body[data-theme="dark"] .markdown-preview,
 body[data-theme="dark"] .markdown-theme {
   color: #e7e0d3;
   background: #16130f;

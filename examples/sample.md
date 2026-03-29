@@ -48,6 +48,16 @@ func main() {
 }
 ```
 
+## Math
+
+Inline math like $e^{i\pi} + 1 = 0$ should render inside paragraphs.
+
+Display math should also work:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}
+$$
+
 ## Footnotes
 
 Footnotes now render in the preview.[^intro] Repeated references should also work.[^repeat]

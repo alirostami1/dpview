@@ -35,6 +35,7 @@ body {
   color: var(--text);
   background: var(--background);
   font: 14px/1.4 sans-serif;
+  overflow: hidden;
 }
 
 button,
@@ -65,7 +66,7 @@ select {
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .app.sidebar-collapsed {
@@ -147,17 +148,19 @@ select {
 
 .main {
   min-width: 0;
+  min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .panel {
-  height: 100vh;
-  overflow: auto;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .preview {
-  height: 100%;
-  min-height: 100%;
+  min-height: 0;
 }
 
 .show-sidebar {
@@ -168,13 +171,12 @@ select {
 }
 
 .preview-content {
-  height: 100vh;
+  min-height: 0;
 }
 
 .preview-content.markdown-preview {
   width: 100%;
-  height: 100%;
-  min-height: 100%;
+  padding: 1.5rem;
 }
 
 .preview-content.typst-preview {
@@ -184,13 +186,12 @@ select {
 .markdown-theme {
   display: flow-root;
   width: 100%;
-  min-height: 100%;
   margin: 0;
-  padding: 1.5rem;
+  padding: 0;
 }
 
 .frontmatter-panel {
-  margin: 1.5rem 1.5rem 0;
+  margin: 0 0 1.5rem;
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -241,6 +242,16 @@ select {
   overflow: auto;
 }
 
+.preview-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0;
+}
+
+.preview-content .katex {
+  max-width: 100%;
+}
+
 .typst-pages {
   display: grid;
   gap: 1.5rem;
@@ -263,7 +274,7 @@ select {
 .preview.empty {
   display: grid;
   place-items: center;
-  min-height: 100vh;
+  min-height: 100%;
   color: var(--muted);
   text-align: center;
   font-size: 1.25rem;

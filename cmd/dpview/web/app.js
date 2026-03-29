@@ -353,11 +353,40 @@ function renderPreview() {
         : "";
     previewEl.innerHTML = `<div class="${previewWrapperClass}">${frontMatterHTML}${preview.html}</div>`;
     bindFrontMatterState();
+    if (file?.kind === "markdown") {
+      renderMarkdownMath(previewEl.querySelector(".markdown-preview"));
+    }
     return;
   }
 
   previewEl.className = "preview empty";
   previewEl.textContent = file ? "No preview available." : "No file selected.";
+}
+
+function renderMarkdownMath(container) {
+  if (!container) {
+    return;
+  }
+  if (typeof katex?.render === "function") {
+    for (const node of container.querySelectorAll(".markdown-math-block")) {
+      katex.render(node.dataset.latex || "", node, {
+        displayMode: true,
+        throwOnError: false,
+      });
+    }
+  }
+  if (typeof renderMathInElement !== "function") {
+    return;
+  }
+  renderMathInElement(container, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "$", right: "$", display: false },
+      { left: "\\(", right: "\\)", display: false },
+      { left: "\\[", right: "\\]", display: true },
+    ],
+    throwOnError: false,
+  });
 }
 
 function renderFrontMatter(frontMatter) {

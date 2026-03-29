@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ type markdownRenderer struct {
 	sanitize *bluemonday.Policy
 }
 
+var markdownParagraphPattern = regexp.MustCompile(`(?s)<p>(.*?)</p>`)
+
 func newMarkdownRenderer() *markdownRenderer {
 	md := goldmark.New(
 		goldmark.WithExtensions(
@@ -42,7 +45,7 @@ func newMarkdownRenderer() *markdownRenderer {
 	policy := bluemonday.UGCPolicy()
 	policy.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	policy.AllowAttrs("class").OnElements("article")
-	policy.AllowAttrs("class", "role").OnElements("a", "div")
+	policy.AllowAttrs("class", "role", "data-latex").OnElements("a", "div")
 	policy.AllowAttrs("id").OnElements("li", "sup")
 	return &markdownRenderer{md: md, sanitize: policy}
 }
@@ -79,7 +82,8 @@ func (r *markdownRenderer) Render(_ context.Context, req RenderRequest) api.Prev
 	if err := r.md.Convert(body, &out); err != nil {
 		return errPreview(req.Started, "internal_error", "Failed to render Markdown", err.Error())
 	}
-	safe := r.sanitize.SanitizeBytes(out.Bytes())
+	rewritten := rewriteMarkdownDisplayMath(out.String())
+	safe := r.sanitize.SanitizeBytes([]byte(rewritten))
 	return api.Preview{
 		HTML:             `<article class="markdown-theme">` + titleHTML + string(safe) + `</article>`,
 		FrontMatter:      frontMatter,
@@ -181,4 +185,38 @@ func markdownHasH1(md goldmark.Markdown, source []byte) bool {
 		return ast.WalkContinue, nil
 	})
 	return found
+}
+
+func rewriteMarkdownDisplayMath(rendered string) string {
+	return markdownParagraphPattern.ReplaceAllStringFunc(rendered, func(block string) string {
+		matches := markdownParagraphPattern.FindStringSubmatch(block)
+		if len(matches) != 2 {
+			return block
+		}
+
+		inner := strings.TrimSpace(matches[1])
+		expr, ok := extractDisplayMath(inner)
+		if !ok {
+			return block
+		}
+		return `<div class="markdown-math-block" data-latex="` + html.EscapeString(expr) + `"></div>`
+	})
+}
+
+func extractDisplayMath(content string) (string, bool) {
+	normalized := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(content, "<br />", "\n"), "<br>", "\n"))
+	for _, pair := range [][2]string{
+		{"$$", "$$"},
+		{`\[`, `\]`},
+	} {
+		if !strings.HasPrefix(normalized, pair[0]) || !strings.HasSuffix(normalized, pair[1]) {
+			continue
+		}
+		expr := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(normalized, pair[0]), pair[1]))
+		if expr == "" {
+			return "", false
+		}
+		return html.UnescapeString(expr), true
+	}
+	return "", false
 }

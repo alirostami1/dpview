@@ -202,6 +202,40 @@ func TestRenderMarkdownSupportsFootnotes(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownRewritesDisplayMathBlocks(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "math.md")
+	content := strings.Join([]string{
+		"Before math.",
+		"",
+		"$$",
+		`\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}`,
+		"$$",
+		"",
+		"After math.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "math.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if !strings.Contains(preview.HTML, `class="markdown-math-block"`) {
+		t.Fatalf("Render() HTML missing math placeholder: %q", preview.HTML)
+	}
+	if !strings.Contains(preview.HTML, `data-latex="\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}"`) {
+		t.Fatalf("Render() HTML missing math expression: %q", preview.HTML)
+	}
+}
+
 func TestRenderMarkdownSupportsRepeatedFootnoteReferences(t *testing.T) {
 	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
 	if err != nil {
