@@ -116,7 +116,7 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 		}
 		defer os.RemoveAll(wrapperDir)
 		wrapperPath := filepath.Join(wrapperDir, "dpview-wrapper.typ")
-		if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.AbsPath, req.Settings)), 0o644); err != nil {
+		if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.Info.Path, req.Settings)), 0o644); err != nil {
 			return errPreview(req.Started, "internal_error", "Failed to prepare Typst theme wrapper", err.Error())
 		}
 		compileSource = wrapperPath
@@ -176,9 +176,9 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 	}
 }
 
-func buildTypstWrapper(absPath string, settings api.Settings) string {
+func buildTypstWrapper(sourcePath string, settings api.Settings) string {
 	theme := resolveTypstTheme(settings)
-	source := filepath.ToSlash(absPath)
+	source := "/" + strings.TrimPrefix(filepath.ToSlash(sourcePath), "/")
 	return strings.Join([]string{
 		fmt.Sprintf("#let dpview-page = rgb(%q)", theme.Page),
 		fmt.Sprintf("#let dpview-text = rgb(%q)", theme.Text),

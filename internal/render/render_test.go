@@ -331,7 +331,7 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 			if err != nil {
 				return nil, nil, err
 			}
-			if !strings.Contains(string(wrapper), `#include `) || !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
+			if !strings.Contains(string(wrapper), `#include "/demo.typ"`) || !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
 				return nil, nil, errors.New("wrapper missing theme tokens")
 			}
 			renderDir = filepath.Dir(args[4])
