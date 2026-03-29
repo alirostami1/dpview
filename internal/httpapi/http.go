@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -61,8 +62,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/settings", s.handleSettings)
 	mux.HandleFunc("POST /api/settings", s.handleSetSettings)
 	mux.HandleFunc("GET /events", s.handleEvents)
-	fileServer := http.FileServer(http.FS(s.static))
-	mux.Handle("/", fileServer)
+	mux.HandleFunc("/", s.handleStatic)
 	return s.withMiddleware(mux)
 }
 
@@ -180,6 +180,36 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.NotFound(w, r)
+		return
+	}
+
+	name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+	if name == "." {
+		name = ""
+	}
+	if name != "" {
+		if _, err := fs.Stat(s.static, name); err == nil {
+			http.FileServer(http.FS(s.static)).ServeHTTP(w, r)
+			return
+		}
+	}
+
+	data, err := fs.ReadFile(s.static, "index.html")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if r.Method == http.MethodHead {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	_, _ = w.Write(data)
 }
 
 func writeSSE(w http.ResponseWriter, event api.Event) {

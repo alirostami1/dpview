@@ -24,9 +24,11 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 		store:  store,
 		health: api.HealthData{Status: "ok", Renderers: []api.RendererStatus{{Kind: files.KindTypst, Name: "Typst", Available: true}}},
 	}, fstest.MapFS{
-		"index.html": &fstest.MapFile{Data: []byte("ok")},
-		"styles.css": &fstest.MapFile{Data: []byte("")},
-		"app.js":     &fstest.MapFile{Data: []byte("")},
+		"index.html":                   &fstest.MapFile{Data: []byte("ok")},
+		"styles.css":                  &fstest.MapFile{Data: []byte("style")},
+		"app.js":                      &fstest.MapFile{Data: []byte("app")},
+		"themes/markdown/default.css": &fstest.MapFile{Data: []byte("theme")},
+		"vendor/katex/katex.min.css":  &fstest.MapFile{Data: []byte("katex")},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -53,6 +55,30 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	body = readBody(t, resp.Body)
 	if !strings.Contains(body, `\u003cp\u003eok\u003c/p\u003e`) || !strings.Contains(body, `"ok":true`) {
 		t.Fatalf("GET /api/current body=%s", body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/styles.css", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || body != "style" {
+		t.Fatalf("GET /styles.css status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/themes/markdown/default.css", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || body != "theme" {
+		t.Fatalf("GET /themes/markdown/default.css status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/vendor/katex/katex.min.css", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || body != "katex" {
+		t.Fatalf("GET /vendor/katex/katex.min.css status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/notes/test.md", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || body != "ok" {
+		t.Fatalf("GET /notes/test.md status=%d body=%s", resp.StatusCode, body)
 	}
 }
 

@@ -471,7 +471,7 @@ function applyCurrent(data) {
     state.frontMatterExpanded = null;
   }
   localStorage.setItem(STORAGE.currentPath, path);
-  syncQueryPath(path);
+  syncLocationPath(path);
   renderTree();
   renderPreview();
   if (state.localSelectionInFlight && state.localSelectionInFlight !== path) {
@@ -563,6 +563,25 @@ function applyHealth(data) {
   renderHealth();
 }
 
+function encodeAppPath(path) {
+  if (!path) {
+    return "/";
+  }
+  return `/${path.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+}
+
+function locationDeepLinkPath() {
+  const url = new URL(window.location.href);
+  if (url.pathname === "/") {
+    return "";
+  }
+  return url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((part) => decodeURIComponent(part))
+    .join("/");
+}
+
 async function setCurrent(path) {
   state.localSelectionInFlight = path;
   setStatus(`Loading ${path}...`);
@@ -580,17 +599,15 @@ async function setCurrent(path) {
   applyCurrent(result.data);
 }
 
-function syncQueryPath(path) {
+function syncLocationPath(path) {
   const url = new URL(window.location.href);
-  if (path) {
-    url.searchParams.set("path", path);
-  } else {
-    url.searchParams.delete("path");
-  }
+  url.pathname = encodeAppPath(path);
+  url.search = "";
   window.history.replaceState({}, "", url);
 }
 
 async function loadInitialState() {
+  const initialDeepLinkPath = locationDeepLinkPath();
   const [health, files, current, settings] = await Promise.all([
     apiFetch("/api/health"),
     apiFetch("/api/files"),
@@ -617,10 +634,9 @@ async function loadInitialState() {
     await syncSettings({ rerenderTypst: current.data.file?.kind === "typst" });
   }
 
-  const deeplinkPath = new URL(window.location.href).searchParams.get("path");
   const storedPath = localStorage.getItem(STORAGE.currentPath);
   const preferredPath =
-    deeplinkPath || (!current.data.current && storedPath ? storedPath : "");
+    initialDeepLinkPath || (!current.data.current && storedPath ? storedPath : "");
   if (preferredPath && preferredPath !== current.data.file?.path) {
     await setCurrent(preferredPath);
   }
