@@ -18,6 +18,7 @@ type Application interface {
 	SetCurrent(context.Context, string) (api.CurrentData, int, *api.Error)
 	Refresh(context.Context) (api.CurrentData, int, *api.Error)
 	ClearCurrent() api.CurrentData
+	SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error)
 	UpdateSettings(api.Settings) api.SettingsData
 	Snapshot() state.Snapshot
 	Subscribe() (<-chan api.Event, func())
@@ -33,9 +34,18 @@ type CurrentRequest struct {
 	Path string `json:"path"`
 }
 
+type SeekRequest struct {
+	Path       string `json:"path"`
+	Line       int    `json:"line"`
+	Column     int    `json:"column"`
+	TopLine    int    `json:"top_line"`
+	BottomLine int    `json:"bottom_line"`
+}
+
 type SettingsRequest struct {
 	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	SeekEnabled                 bool   `json:"seek_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
 	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`
@@ -58,6 +68,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/current", s.handleCurrent)
 	mux.HandleFunc("POST /api/current", s.handleSetCurrent)
 	mux.HandleFunc("DELETE /api/current", s.handleDeleteCurrent)
+	mux.HandleFunc("GET /api/seek", s.handleSeek)
+	mux.HandleFunc("POST /api/seek", s.handleSetSeek)
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
 	mux.HandleFunc("GET /api/settings", s.handleSettings)
 	mux.HandleFunc("POST /api/settings", s.handleSetSettings)
@@ -95,6 +107,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.Snapshot().Settings))
 }
 
+func (s *Server) handleSeek(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, api.OK(s.app.Snapshot().Seek))
+}
+
 func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var req CurrentRequest
@@ -112,6 +128,27 @@ func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeleteCurrent(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.ClearCurrent()))
+}
+
+func (s *Server) handleSetSeek(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var req SeekRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
+		return
+	}
+	resp, status, err := s.app.SetSeek(r.Context(), api.SeekData{
+		Path:       req.Path,
+		Line:       req.Line,
+		Column:     req.Column,
+		TopLine:    req.TopLine,
+		BottomLine: req.BottomLine,
+	})
+	if err != nil {
+		writeJSON(w, status, api.Fail(err))
+		return
+	}
+	writeJSON(w, status, api.OK(resp))
 }
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +170,7 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
 		AutoRefreshPaused:           req.AutoRefreshPaused,
 		SidebarCollapsed:            req.SidebarCollapsed,
+		SeekEnabled:                 req.SeekEnabled,
 		TypstPreviewTheme:           req.TypstPreviewTheme,
 		MarkdownFrontMatterVisible:  req.MarkdownFrontMatterVisible,
 		MarkdownFrontMatterExpanded: req.MarkdownFrontMatterExpanded,
@@ -159,6 +197,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	snap := s.app.Snapshot()
 	writeSSE(w, api.Event{Type: api.EventFilesChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Files})
 	writeSSE(w, api.Event{Type: api.EventCurrentChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Current})
+	writeSSE(w, api.Event{Type: api.EventSeekChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Seek})
 	writeSSE(w, api.Event{Type: api.EventSettingsChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Settings})
 	flusher.Flush()
 

@@ -18,6 +18,7 @@ const state = {
   settings: {
     auto_refresh_paused: false,
     sidebar_collapsed: false,
+    seek_enabled: true,
     typst_preview_theme: true,
     markdown_frontmatter_visible: true,
     markdown_frontmatter_expanded: true,
@@ -26,6 +27,7 @@ const state = {
     preview_theme: "default",
   },
   health: null,
+  seek: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
   page: localStorage.getItem(STORAGE.page) || "file",
@@ -35,6 +37,7 @@ const state = {
   frontMatterExpanded: null,
   localSelectionInFlight: "",
   statusMessage: "",
+  pendingSeekFrame: 0,
 };
 
 const appEl = document.querySelector(".app");
@@ -49,6 +52,7 @@ const pauseRefreshInput = document.getElementById("pause-refresh");
 const themeSelect = document.getElementById("theme");
 const previewThemeSelect = document.getElementById("preview-theme");
 const typstPreviewThemeInput = document.getElementById("typst-preview-theme");
+const seekEnabledInput = document.getElementById("seek-enabled");
 const markdownFrontMatterVisibleInput = document.getElementById("markdown-frontmatter-visible");
 const markdownFrontMatterExpandedInput = document.getElementById("markdown-frontmatter-expanded");
 const markdownFrontMatterTitleInput = document.getElementById("markdown-frontmatter-title");
@@ -112,6 +116,23 @@ typstPreviewThemeInput.addEventListener("change", async () => {
     state.settings.typst_preview_theme = previous;
     typstPreviewThemeInput.checked = previous;
     return;
+  }
+  setStatus("Settings updated.");
+});
+
+seekEnabledInput.addEventListener("change", async () => {
+  const previous = state.settings.seek_enabled;
+  state.settings.seek_enabled = seekEnabledInput.checked;
+  const result = await syncSettings();
+  if (!result.ok) {
+    state.settings.seek_enabled = previous;
+    seekEnabledInput.checked = previous;
+    return;
+  }
+  if (!state.settings.seek_enabled) {
+    state.seek = null;
+  } else {
+    queueApplySeek();
   }
   setStatus("Settings updated.");
 });
@@ -356,6 +377,7 @@ function renderPreview() {
     if (file?.kind === "markdown") {
       renderMarkdownMath(previewEl.querySelector(".markdown-preview"));
     }
+    queueApplySeek();
     return;
   }
 
@@ -482,6 +504,14 @@ function applyCurrent(data) {
   state.localSelectionInFlight = "";
 }
 
+function applySeek(data) {
+  state.seek = data || null;
+  if (!state.settings.seek_enabled) {
+    return;
+  }
+  queueApplySeek();
+}
+
 function applySettings(data) {
   const settings = data.settings || {};
   const storedTheme = localStorage.getItem(STORAGE.theme);
@@ -489,6 +519,7 @@ function applySettings(data) {
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
     sidebar_collapsed: !!settings.sidebar_collapsed,
+    seek_enabled: settings.seek_enabled !== false,
     typst_preview_theme: settings.typst_preview_theme !== false,
     markdown_frontmatter_visible: settings.markdown_frontmatter_visible !== false,
     markdown_frontmatter_expanded: settings.markdown_frontmatter_expanded !== false,
@@ -506,10 +537,16 @@ function applySettings(data) {
   localStorage.setItem(STORAGE.sidebarCollapsed, String(state.sidebarCollapsed));
   renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
+  seekEnabledInput.checked = !!state.settings.seek_enabled;
   typstPreviewThemeInput.checked = !!state.settings.typst_preview_theme;
   markdownFrontMatterVisibleInput.checked = !!state.settings.markdown_frontmatter_visible;
   markdownFrontMatterExpandedInput.checked = !!state.settings.markdown_frontmatter_expanded;
   markdownFrontMatterTitleInput.checked = !!state.settings.markdown_frontmatter_title;
+  if (!state.settings.seek_enabled) {
+    state.seek = null;
+  } else {
+    queueApplySeek();
+  }
   if (state.current?.file) {
     renderPreview();
   }
@@ -519,6 +556,7 @@ function currentSettingsPayload() {
   return {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
     sidebar_collapsed: !!state.sidebarCollapsed,
+    seek_enabled: !!state.settings.seek_enabled,
     typst_preview_theme: !!state.settings.typst_preview_theme,
     markdown_frontmatter_visible: !!state.settings.markdown_frontmatter_visible,
     markdown_frontmatter_expanded: !!state.settings.markdown_frontmatter_expanded,
@@ -561,6 +599,155 @@ async function syncSettings(options = {}) {
 function applyHealth(data) {
   state.health = data;
   renderHealth();
+}
+
+function queueApplySeek() {
+  if (state.pendingSeekFrame) {
+    cancelAnimationFrame(state.pendingSeekFrame);
+  }
+  state.pendingSeekFrame = requestAnimationFrame(() => {
+    state.pendingSeekFrame = 0;
+    applySeekToPreview();
+  });
+}
+
+function applySeekToPreview() {
+  const seek = state.seek;
+  const file = state.current?.file;
+  const preview = state.current?.preview;
+  if (!state.settings.seek_enabled || !seek || !file || seek.path !== file.path || preview?.status !== "ready") {
+    return;
+  }
+
+  if (file.kind === "markdown") {
+    applyMarkdownSeek(seek);
+    return;
+  }
+  if (file.kind === "typst") {
+    applyTypstSeek(seek, preview);
+  }
+}
+
+function applyMarkdownSeek(seek) {
+  const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
+  if (!focusLine) {
+    return;
+  }
+  const candidates = collectMarkdownSeekCandidates();
+  if (!candidates.length) {
+    return;
+  }
+
+  const containing = candidates.filter((candidate) => (
+    focusLine >= candidate.start && focusLine <= candidate.end
+  ));
+
+  if (containing.length) {
+    const target = containing.reduce((best, candidate) => {
+      if (!best) {
+        return candidate;
+      }
+      const bestSpan = best.end - best.start;
+      const candidateSpan = candidate.end - candidate.start;
+      if (candidateSpan !== bestSpan) {
+        return candidateSpan < bestSpan ? candidate : best;
+      }
+      return candidate.depth > best.depth ? candidate : best;
+    }, null);
+    scrollPreviewToLine(target, focusLine);
+    return;
+  }
+
+  const before = candidates
+    .filter((candidate) => candidate.end < focusLine)
+    .reduce((best, candidate) => (!best || candidate.end > best.end ? candidate : best), null);
+  const after = candidates
+    .filter((candidate) => candidate.start > focusLine)
+    .reduce((best, candidate) => (!best || candidate.start < best.start ? candidate : best), null);
+
+  if (before && after) {
+    scrollPreviewBetweenCandidates(before, after, focusLine);
+    return;
+  }
+
+  scrollPreviewToLine(before || after, focusLine);
+}
+
+function applyTypstSeek(seek, preview) {
+  const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
+  const totalLines = Number(preview?.source_line_count || 0);
+  if (!focusLine || !totalLines) {
+    return;
+  }
+  const container = fileViewEl;
+  const scrollRange = container.scrollHeight - container.clientHeight;
+  if (scrollRange <= 0) {
+    return;
+  }
+  const progress = totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
+  container.scrollTo({ top: progress * scrollRange, behavior: "auto" });
+}
+
+function collectMarkdownSeekCandidates() {
+  return [...previewEl.querySelectorAll("[data-source-start-line][data-source-end-line]")]
+    .map((node) => {
+      const start = Number(node.dataset.sourceStartLine || 0);
+      const end = Number(node.dataset.sourceEndLine || start);
+      if (!start || !end) {
+        return null;
+      }
+      return {
+        node,
+        start,
+        end,
+        depth: countNodeDepth(node),
+      };
+    })
+    .filter(Boolean);
+}
+
+function countNodeDepth(node) {
+  let depth = 0;
+  for (let current = node.parentElement; current; current = current.parentElement) {
+    depth += 1;
+  }
+  return depth;
+}
+
+function scrollPreviewToLine(candidate, line) {
+  if (!candidate) {
+    return;
+  }
+  const container = fileViewEl;
+  const containerRect = container.getBoundingClientRect();
+  const nodeRect = candidate.node.getBoundingClientRect();
+  const span = Math.max(1, candidate.end - candidate.start);
+  const progress = Math.max(0, Math.min(1, (line - candidate.start) / span));
+  const targetPoint = nodeRect.top + (nodeRect.height * progress);
+  const targetTop = container.scrollTop + (targetPoint - containerRect.top) - (container.clientHeight * 0.32);
+  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+  container.scrollTo({
+    top: Math.max(0, Math.min(maxTop, targetTop)),
+    behavior: "auto",
+  });
+}
+
+function scrollPreviewBetweenCandidates(before, after, line) {
+  const container = fileViewEl;
+  const containerRect = container.getBoundingClientRect();
+  const beforeRect = before.node.getBoundingClientRect();
+  const afterRect = after.node.getBoundingClientRect();
+  const lineSpan = Math.max(1, after.start - before.end);
+  const progress = Math.max(0, Math.min(1, (line - before.end) / lineSpan));
+  const beforePoint = beforeRect.top + beforeRect.height;
+  const afterPoint = afterRect.top;
+  const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
+  const targetTop = container.scrollTop + (targetPoint - containerRect.top) - (container.clientHeight * 0.32);
+  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+  container.scrollTo({
+    top: Math.max(0, Math.min(maxTop, targetTop)),
+    behavior: "auto",
+  });
 }
 
 function encodeAppPath(path) {
@@ -608,20 +795,23 @@ function syncLocationPath(path) {
 
 async function loadInitialState() {
   const initialDeepLinkPath = locationDeepLinkPath();
-  const [health, files, current, settings] = await Promise.all([
+  const [health, files, current, seek, settings] = await Promise.all([
     apiFetch("/api/health"),
     apiFetch("/api/files"),
     apiFetch("/api/current"),
+    apiFetch("/api/seek"),
     apiFetch("/api/settings"),
   ]);
   if (!health.ok) throw new Error(health.error.message);
   if (!files.ok) throw new Error(files.error.message);
   if (!current.ok) throw new Error(current.error.message);
+  if (!seek.ok) throw new Error(seek.error.message);
   if (!settings.ok) throw new Error(settings.error.message);
 
   applyHealth(health.data);
   applyFiles(files.data);
   applyCurrent(current.data);
+  applySeek(seek.data);
   applySettings(settings.data);
   setPage(state.page);
 
@@ -654,6 +844,9 @@ function connectEvents() {
   });
   events.addEventListener("preview_updated", (event) => {
     applyCurrent(parseEvent(event));
+  });
+  events.addEventListener("seek_changed", (event) => {
+    applySeek(parseEvent(event));
   });
   events.addEventListener("render_started", (event) => {
     state.current = parseEvent(event);

@@ -186,6 +186,7 @@ function M.start(state, callback)
     "--port",
     tostring(port),
     "--sidebar-closed=" .. tostring(state.config.sidebar_collapsed),
+    "--seek-enabled=" .. tostring(state.config.cursor_seek),
     "--theme",
     state.config.theme,
     "--preview-theme",

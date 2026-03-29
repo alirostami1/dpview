@@ -209,6 +209,7 @@ func shortHash(data []byte) string {
 
 func errPreview(start time.Time, code, message, detail string) api.Preview {
 	return api.Preview{
+		SourceLineCount:  0,
 		UpdatedAt:        time.Now().UTC(),
 		RenderDurationMS: time.Since(start).Milliseconds(),
 		Status:           api.RenderStatusError,

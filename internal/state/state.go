@@ -11,6 +11,7 @@ import (
 type Snapshot struct {
 	Files    api.FilesData
 	Current  api.CurrentData
+	Seek     api.SeekData
 	Settings api.SettingsData
 	Version  int64
 	EventID  int64
@@ -25,6 +26,7 @@ type Store struct {
 	current  *files.FileInfo
 	preview  api.Preview
 	origin   string
+	seek     api.SeekData
 	settings api.Settings
 	subs     map[chan api.Event]struct{}
 }
@@ -35,6 +37,7 @@ func NewStore() *Store {
 		preview: api.Preview{Status: api.RenderStatusIdle},
 		settings: api.Settings{
 			SidebarCollapsed:            false,
+			SeekEnabled:                 true,
 			TypstPreviewTheme:           true,
 			MarkdownFrontMatterVisible:  true,
 			MarkdownFrontMatterExpanded: true,
@@ -52,6 +55,7 @@ func (s *Store) Snapshot() Snapshot {
 	return Snapshot{
 		Files:    s.filesDataLocked(),
 		Current:  s.currentDataLocked(),
+		Seek:     s.seekDataLocked(),
 		Settings: s.settingsDataLocked(),
 		Version:  s.version,
 		EventID:  s.eventID,
@@ -129,6 +133,34 @@ func (s *Store) UpdateSettings(settings api.Settings) api.SettingsData {
 	return data
 }
 
+func (s *Store) SetSeek(seek api.SeekData, origin string) api.SeekData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.version++
+	s.seek = api.SeekData{
+		Path:       seek.Path,
+		Line:       seek.Line,
+		Column:     seek.Column,
+		TopLine:    seek.TopLine,
+		BottomLine: seek.BottomLine,
+		FocusLine:  seek.FocusLine,
+		Origin:     origin,
+	}
+	data := s.seekDataLocked()
+	s.emitLocked(api.EventSeekChanged, data)
+	return data
+}
+
+func (s *Store) ClearSeek(origin string) api.SeekData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.version++
+	s.seek = api.SeekData{Origin: origin}
+	data := s.seekDataLocked()
+	s.emitLocked(api.EventSeekChanged, data)
+	return data
+}
+
 func (s *Store) Subscribe() (<-chan api.Event, func()) {
 	ch := make(chan api.Event, 16)
 	s.mu.Lock()
@@ -171,6 +203,13 @@ func (s *Store) settingsDataLocked() api.SettingsData {
 		Version:  s.version,
 		EventID:  s.eventID,
 	}
+}
+
+func (s *Store) seekDataLocked() api.SeekData {
+	data := s.seek
+	data.Version = s.version
+	data.EventID = s.eventID
+	return data
 }
 
 func (s *Store) emitLocked(eventType string, data any) api.Event {

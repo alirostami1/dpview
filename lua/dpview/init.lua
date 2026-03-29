@@ -1,5 +1,6 @@
 local server = require("dpview.server")
 local sync = require("dpview.sync")
+local http = require("dpview.http")
 
 local M = {}
 
@@ -15,6 +16,8 @@ local defaults = {
   markdown_frontmatter_visible = true,
   markdown_frontmatter_expanded = true,
   markdown_frontmatter_title = true,
+  cursor_seek = true,
+  cursor_seek_debounce_ms = 80,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -34,6 +37,10 @@ local state = {
     browser_opened = false,
     launch_label = nil,
     last_error = nil,
+    current_path = nil,
+  },
+  seek = {
+    seq = 0,
   },
 }
 
@@ -53,6 +60,14 @@ local function create_autocmds()
     group = group,
     callback = function(args)
       require("dpview").sync_current_buffer({ bufnr = args.buf })
+      require("dpview").sync_view({ bufnr = args.buf })
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinScrolled" }, {
+    group = group,
+    callback = function(args)
+      require("dpview").sync_view({ bufnr = args.buf })
     end,
   })
 
@@ -84,6 +99,70 @@ local function create_commands()
   vim.api.nvim_create_user_command("DPviewStatus", function()
     require("dpview").status()
   end, {})
+
+  vim.api.nvim_create_user_command("DPviewSeekEnable", function()
+    require("dpview").set_seek_enabled(true)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewSeekDisable", function()
+    require("dpview").set_seek_enabled(false)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewSeekToggle", function()
+    require("dpview").set_seek_enabled(not state.config.cursor_seek)
+  end, {})
+end
+
+local function current_settings_payload()
+  return {
+    sidebar_collapsed = state.config.sidebar_collapsed,
+    seek_enabled = state.config.cursor_seek,
+    typst_preview_theme = state.config.typst_preview_theme,
+    markdown_frontmatter_visible = state.config.markdown_frontmatter_visible,
+    markdown_frontmatter_expanded = state.config.markdown_frontmatter_expanded,
+    markdown_frontmatter_title = state.config.markdown_frontmatter_title,
+    theme = state.config.theme,
+    preview_theme = state.config.preview_theme,
+  }
+end
+
+local function sync_settings()
+  if not server.is_running(state) then
+    return
+  end
+  http.request_json({
+    method = "GET",
+    host = state.config.host,
+    port = state.server.port,
+    path = "/api/settings",
+  }, function(err, response, payload)
+    if err then
+      notify(vim.log.levels.ERROR, "failed to fetch settings: " .. err)
+      return
+    end
+    if response.status ~= 200 or not payload or payload.ok ~= true then
+      notify(vim.log.levels.ERROR, "dpview rejected settings lookup")
+      return
+    end
+
+    local settings = payload.data and payload.data.settings or {}
+    local merged = vim.tbl_extend("force", settings, current_settings_payload())
+    http.request_json({
+      method = "POST",
+      host = state.config.host,
+      port = state.server.port,
+      path = "/api/settings",
+      body = vim.json.encode(merged),
+    }, function(post_err, post_response, post_payload)
+      if post_err then
+        notify(vim.log.levels.ERROR, "failed to sync settings: " .. post_err)
+        return
+      end
+      if post_response.status ~= 200 or not post_payload or post_payload.ok ~= true then
+        notify(vim.log.levels.ERROR, "dpview rejected updated settings")
+      end
+    end)
+  end)
 end
 
 function M._init_plugin()
@@ -106,6 +185,10 @@ end
 
 function M.sync_current_buffer(opts)
   sync.sync_current(state, opts)
+end
+
+function M.sync_view(opts)
+  sync.sync_seek(state, opts)
 end
 
 function M.start()
@@ -149,6 +232,7 @@ function M.status()
     ("running: %s"):format(server.is_running(state) and "yes" or "no"),
     ("auto_start: %s"):format(state.config.auto_start and "true" or "false"),
     ("sidebar_collapsed: %s"):format(state.config.sidebar_collapsed and "true" or "false"),
+    ("cursor_seek: %s"):format(state.config.cursor_seek and "true" or "false"),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
     ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
@@ -161,6 +245,12 @@ function M.status()
     lines[#lines + 1] = ("last_error: %s"):format(state.server.last_error)
   end
   vim.api.nvim_echo({ { table.concat(lines, "\n") } }, false, {})
+end
+
+function M.set_seek_enabled(enabled)
+  state.config.cursor_seek = enabled and true or false
+  sync_settings()
+  notify(vim.log.levels.INFO, "DPview seeking " .. (state.config.cursor_seek and "enabled" or "disabled"))
 end
 
 function M._state()

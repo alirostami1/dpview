@@ -12,6 +12,7 @@ const (
 	EventPreviewUpdated  = "preview_updated"
 	EventRenderStarted   = "render_started"
 	EventRenderFailed    = "render_failed"
+	EventSeekChanged     = "seek_changed"
 	EventSettingsChanged = "settings_changed"
 )
 
@@ -39,6 +40,7 @@ const (
 type Preview struct {
 	HTML             string       `json:"html,omitempty"`
 	FrontMatter      *FrontMatter `json:"frontmatter,omitempty"`
+	SourceLineCount  int          `json:"source_line_count,omitempty"`
 	UpdatedAt        time.Time    `json:"updated_at,omitempty"`
 	RenderDurationMS int64        `json:"render_duration_ms,omitempty"`
 	CacheHit         bool         `json:"cache_hit"`
@@ -67,6 +69,18 @@ type CurrentData struct {
 	Origin  string          `json:"origin,omitempty"`
 }
 
+type SeekData struct {
+	Path       string `json:"path,omitempty"`
+	Line       int    `json:"line,omitempty"`
+	Column     int    `json:"column,omitempty"`
+	TopLine    int    `json:"top_line,omitempty"`
+	BottomLine int    `json:"bottom_line,omitempty"`
+	FocusLine  int    `json:"focus_line,omitempty"`
+	Version    int64  `json:"version"`
+	EventID    int64  `json:"event_id"`
+	Origin     string `json:"origin,omitempty"`
+}
+
 type FilesData struct {
 	Files   []files.FileInfo `json:"files"`
 	Tree    []files.TreeNode `json:"tree"`
@@ -77,6 +91,7 @@ type FilesData struct {
 type Settings struct {
 	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	SeekEnabled                 bool   `json:"seek_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
 	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`

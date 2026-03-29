@@ -161,6 +161,7 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 
 	return api.Preview{
 		HTML:             htmlOut.String(),
+		SourceLineCount:  countSourceLines(req.Source),
 		UpdatedAt:        time.Now().UTC(),
 		RenderDurationMS: time.Since(req.Started).Milliseconds(),
 		Status:           api.RenderStatusReady,

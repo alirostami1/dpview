@@ -47,10 +47,26 @@ func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
 
-	checks := []string{"<article class=\"markdown-theme\">", "<h1>Heading</h1>", "<ul>", "<table>", "<pre><code", "type=\"checkbox\"", "href=\"https://example.com\""}
+	checks := []string{"<article class=\"markdown-theme\">", "<h1 data-source-start-line=\"1\" data-source-end-line=\"1\">Heading</h1>", "<ul", "<table", "<pre", "type=\"checkbox\"", "href=\"https://example.com\""}
 	for _, check := range checks {
 		if !strings.Contains(preview.HTML, check) {
 			t.Fatalf("Render() HTML missing %q", check)
+		}
+	}
+	if preview.SourceLineCount != strings.Count(content, "\n")+1 {
+		t.Fatalf("Render() source line count = %d", preview.SourceLineCount)
+	}
+	lineChecks := []string{
+		`<h1 data-source-start-line="1" data-source-end-line="1">`,
+		`<li data-source-start-line="3" data-source-end-line="3">item</li>`,
+		`<li data-source-start-line="4" data-source-end-line="4"><input checked="" disabled="" type="checkbox"/> done</li>`,
+		`<tr data-source-start-line="8" data-source-end-line="8">`,
+		`<pre data-source-start-line="11" data-source-end-line="11"><code>`,
+		`<p data-source-start-line="14" data-source-end-line="14"><a href="https://example.com"`,
+	}
+	for _, check := range lineChecks {
+		if !strings.Contains(preview.HTML, check) {
+			t.Fatalf("Render() HTML missing source anchor %q", check)
 		}
 	}
 }
@@ -92,6 +108,9 @@ func TestRenderMarkdownParsesFrontMatterAndInjectsTitle(t *testing.T) {
 	if !strings.Contains(preview.HTML, "<h1>Frontmatter Title</h1>") {
 		t.Fatalf("Render() HTML missing injected title: %q", preview.HTML)
 	}
+	if !strings.Contains(preview.HTML, `<p data-source-start-line="10" data-source-end-line="10">Body paragraph.</p>`) {
+		t.Fatalf("Render() HTML missing offset source line mapping: %q", preview.HTML)
+	}
 	if preview.FrontMatter == nil || preview.FrontMatter.Format != "yaml" || !preview.FrontMatter.TitleUsed {
 		t.Fatalf("Render() front matter = %+v", preview.FrontMatter)
 	}
@@ -131,7 +150,7 @@ func TestRenderMarkdownFrontMatterTitleDoesNotOverrideExistingH1(t *testing.T) {
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
-	if strings.Count(preview.HTML, "<h1>") != 1 || !strings.Contains(preview.HTML, "<h1>Existing Title</h1>") {
+	if strings.Count(preview.HTML, "<h1") != 1 || !strings.Contains(preview.HTML, ">Existing Title</h1>") {
 		t.Fatalf("Render() HTML = %q", preview.HTML)
 	}
 	if preview.FrontMatter == nil || preview.FrontMatter.TitleUsed {
@@ -190,7 +209,7 @@ func TestRenderMarkdownSupportsFootnotes(t *testing.T) {
 		`class="footnote-ref"`,
 		`role="doc-noteref"`,
 		`<div class="footnotes" role="doc-endnotes">`,
-		`<li id="fn:1">`,
+		`id="fn:1"`,
 		`href="#fnref:1"`,
 		`class="footnote-backref"`,
 		`role="doc-backlink"`,
@@ -335,6 +354,9 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 	}
 	if !strings.Contains(preview.HTML, "data-page=\"1\"") || !strings.Contains(preview.HTML, "<svg><text>two</text></svg>") {
 		t.Fatalf("Render() HTML = %q", preview.HTML)
+	}
+	if preview.SourceLineCount != 1 {
+		t.Fatalf("Render() source line count = %d", preview.SourceLineCount)
 	}
 }
 

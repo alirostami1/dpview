@@ -19,12 +19,13 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	store.SetFiles([]files.FileInfo{{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}}, []files.TreeNode{{Name: "notes", Children: []files.TreeNode{{Name: "test.md", Path: "notes/test.md", Kind: files.KindMarkdown}}}})
 	file := files.FileInfo{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}
 	store.SetCurrent(&file, api.Preview{HTML: "<p>ok</p>", Status: api.RenderStatusReady}, "test", true)
+	store.SetSeek(api.SeekData{Path: "notes/test.md", Line: 8, TopLine: 4, BottomLine: 12, FocusLine: 8}, "test")
 
 	server, err := New(fakeApp{
 		store:  store,
 		health: api.HealthData{Status: "ok", Renderers: []api.RendererStatus{{Kind: files.KindTypst, Name: "Typst", Available: true}}},
 	}, fstest.MapFS{
-		"index.html":                   &fstest.MapFile{Data: []byte("ok")},
+		"index.html":                  &fstest.MapFile{Data: []byte("ok")},
 		"styles.css":                  &fstest.MapFile{Data: []byte("style")},
 		"app.js":                      &fstest.MapFile{Data: []byte("app")},
 		"themes/markdown/default.css": &fstest.MapFile{Data: []byte("theme")},
@@ -55,6 +56,12 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	body = readBody(t, resp.Body)
 	if !strings.Contains(body, `\u003cp\u003eok\u003c/p\u003e`) || !strings.Contains(body, `"ok":true`) {
 		t.Fatalf("GET /api/current body=%s", body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/api/seek", "")
+	body = readBody(t, resp.Body)
+	if !strings.Contains(body, `"path":"notes/test.md"`) || !strings.Contains(body, `"focus_line":8`) {
+		t.Fatalf("GET /api/seek body=%s", body)
 	}
 
 	resp = performRequest(t, handler, http.MethodGet, "/styles.css", "")
@@ -91,7 +98,10 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		refreshErr:    api.NewError("no_current_file", "no current file selected", ""),
 		refreshStatus: http.StatusBadRequest,
 		clearCurrent:  api.CurrentData{Preview: api.Preview{Status: api.RenderStatusError, Error: api.NewError("no_current_file", "Current file cleared", "")}},
-		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
+		seekErr:       api.NewError("current_mismatch", "seek path must match the current file", ""),
+		seekStatus:    http.StatusConflict,
+		seek:          api.SeekData{Path: "notes/test.md", Line: 12, TopLine: 8, BottomLine: 16, FocusLine: 12},
+		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
 	})
@@ -113,6 +123,18 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("POST /api/current invalid json status=%d body=%s", resp.StatusCode, body)
 	}
 
+	resp = performRequest(t, handler, http.MethodPost, "/api/seek", `{"path":"notes/test.md","line":12,"top_line":8,"bottom_line":16}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusConflict || !strings.Contains(body, `"code":"current_mismatch"`) {
+		t.Fatalf("POST /api/seek status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodPost, "/api/seek", `{`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"invalid_json"`) {
+		t.Fatalf("POST /api/seek invalid json status=%d body=%s", resp.StatusCode, body)
+	}
+
 	resp = performRequest(t, handler, http.MethodPost, "/api/refresh", "")
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"no_current_file"`) {
@@ -125,9 +147,9 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("DELETE /api/current status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"seek_enabled":false,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
 	}
 }
@@ -137,8 +159,11 @@ type fakeApp struct {
 	health        api.HealthData
 	current       api.CurrentData
 	clearCurrent  api.CurrentData
+	seek          api.SeekData
 	setErr        *api.Error
 	setStatus     int
+	seekErr       *api.Error
+	seekStatus    int
 	refreshErr    *api.Error
 	refreshStatus int
 	settings      api.SettingsData
@@ -162,6 +187,13 @@ func (f fakeApp) ClearCurrent() api.CurrentData {
 	return f.clearCurrent
 }
 
+func (f fakeApp) SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error) {
+	if f.seekErr != nil {
+		return api.SeekData{}, f.seekStatus, f.seekErr
+	}
+	return f.seek, http.StatusOK, nil
+}
+
 func (f fakeApp) UpdateSettings(api.Settings) api.SettingsData {
 	return f.settings
 }
@@ -170,7 +202,7 @@ func (f fakeApp) Snapshot() state.Snapshot {
 	if f.store != nil {
 		return f.store.Snapshot()
 	}
-	return state.Snapshot{Current: f.current, Settings: f.settings}
+	return state.Snapshot{Current: f.current, Seek: f.seek, Settings: f.settings}
 }
 
 func (f fakeApp) Subscribe() (<-chan api.Event, func()) {

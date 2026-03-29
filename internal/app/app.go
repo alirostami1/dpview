@@ -85,8 +85,34 @@ func (s *Service) ClearCurrent() api.CurrentData {
 	return s.store.ClearCurrent(api.NewError("no_current_file", "Current file cleared", ""), "api")
 }
 
+func (s *Service) SetSeek(_ context.Context, seek api.SeekData) (api.SeekData, int, *api.Error) {
+	if !s.store.Snapshot().Settings.Settings.SeekEnabled {
+		return api.SeekData{}, http.StatusConflict, api.NewError("seek_disabled", "Seek synchronization is disabled", "")
+	}
+	rel := strings.TrimSpace(seek.Path)
+	if rel == "" {
+		return api.SeekData{}, http.StatusBadRequest, api.NewError("invalid_path", "Path is required", "")
+	}
+	_, info, apiErr, status := s.resolvePath(rel)
+	if apiErr != nil {
+		return api.SeekData{}, status, apiErr
+	}
+
+	current := s.store.Snapshot().Current.File
+	if current == nil || current.Path != info.Path {
+		return api.SeekData{}, http.StatusConflict, api.NewError("current_mismatch", "Seek path must match the current file", info.Path)
+	}
+
+	return s.store.SetSeek(normalizeSeek(info.Path, seek), "api"), http.StatusOK, nil
+}
+
 func (s *Service) UpdateSettings(settings api.Settings) api.SettingsData {
-	return s.store.UpdateSettings(settings)
+	previous := s.store.Snapshot().Settings.Settings
+	data := s.store.UpdateSettings(settings)
+	if previous.SeekEnabled && !settings.SeekEnabled {
+		s.store.ClearSeek("settings")
+	}
+	return data
 }
 
 func (s *Service) Rescan() error {
@@ -182,6 +208,44 @@ func (s *Service) resolvePath(rel string) (string, files.FileInfo, *api.Error, i
 
 func samePath(a, b string) bool {
 	return filepath.Clean(a) == filepath.Clean(b) || strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
+func normalizeSeek(path string, seek api.SeekData) api.SeekData {
+	line := clampSeekValue(seek.Line)
+	column := clampSeekValue(seek.Column)
+	top := clampSeekValue(seek.TopLine)
+	bottom := clampSeekValue(seek.BottomLine)
+	if top > 0 && bottom > 0 && bottom < top {
+		top, bottom = bottom, top
+	}
+
+	focus := 0
+	switch {
+	case top > 0 && bottom > 0:
+		focus = top + (bottom-top)/2
+	case line > 0:
+		focus = line
+	case top > 0:
+		focus = top
+	case bottom > 0:
+		focus = bottom
+	}
+
+	return api.SeekData{
+		Path:       path,
+		Line:       line,
+		Column:     column,
+		TopLine:    top,
+		BottomLine: bottom,
+		FocusLine:  focus,
+	}
+}
+
+func clampSeekValue(v int) int {
+	if v < 0 {
+		return 0
+	}
+	return v
 }
 
 func OpenBrowser(url string) error {

@@ -78,6 +78,52 @@ local function post_current(state, relpath)
 
     if response.status ~= 200 or not payload or payload.ok ~= true then
       notify(state, vim.log.levels.ERROR, "dpview rejected the current buffer")
+      return
+    end
+    state.server.current_path = relpath
+  end)
+end
+
+local function current_seek_payload(state, bufnr)
+  if state.config.cursor_seek == false then
+    return nil
+  end
+  local relpath = M.previewable_path(state, bufnr)
+  if not relpath then
+    return nil
+  end
+  local win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_get_buf(win) ~= bufnr then
+    return nil
+  end
+  local cursor = vim.api.nvim_win_get_cursor(win)
+  return {
+    path = relpath,
+    line = cursor[1],
+    column = cursor[2] + 1,
+    top_line = vim.fn.line("w0", win),
+    bottom_line = vim.fn.line("w$", win),
+  }
+end
+
+local function post_seek(state, payload)
+  http.request_json({
+    method = "POST",
+    host = state.config.host,
+    port = state.server.port,
+    path = "/api/seek",
+    body = vim.json.encode(payload),
+  }, function(err, response, payload)
+    if err then
+      notify(state, vim.log.levels.ERROR, "failed to sync cursor: " .. err)
+      return
+    end
+
+    if response.status == 409 then
+      return
+    end
+    if response.status ~= 200 or not payload or payload.ok ~= true then
+      notify(state, vim.log.levels.ERROR, "dpview rejected the cursor position")
     end
   end)
 end
@@ -107,6 +153,31 @@ function M.sync_current(state, opts)
     end
     post_current(state, relpath)
   end)
+end
+
+function M.sync_seek(state, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or 0
+  local payload = current_seek_payload(state, bufnr)
+  if not payload then
+    return
+  end
+  if not server.is_running(state) then
+    return
+  end
+
+  state.seek.seq = (state.seek.seq or 0) + 1
+  local seq = state.seek.seq
+  vim.defer_fn(function()
+    if seq ~= state.seek.seq then
+      return
+    end
+    if state.server.current_path ~= payload.path then
+      M.sync_current(state, { bufnr = bufnr, force_start = false })
+      return
+    end
+    post_seek(state, payload)
+  end, state.config.cursor_seek_debounce_ms or 80)
 end
 
 return M

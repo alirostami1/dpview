@@ -43,6 +43,7 @@ func main() {
 	store := state.NewStore()
 	store.UpdateSettings(api.Settings{
 		SidebarCollapsed:            cfg.SidebarClosed,
+		SeekEnabled:                 cfg.SeekEnabled,
 		TypstPreviewTheme:           cfg.TypstPreviewTheme,
 		MarkdownFrontMatterVisible:  cfg.MarkdownFrontMatterVisible,
 		MarkdownFrontMatterExpanded: cfg.MarkdownFrontMatterExpanded,
