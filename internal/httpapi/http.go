@@ -15,7 +15,7 @@ import (
 )
 
 type Application interface {
-	SetCurrent(context.Context, string) (api.CurrentData, int, *api.Error)
+	SetCurrent(context.Context, string, string) (api.CurrentData, int, *api.Error)
 	Refresh(context.Context) (api.CurrentData, int, *api.Error)
 	ClearCurrent() api.CurrentData
 	SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error)
@@ -31,7 +31,8 @@ type Server struct {
 }
 
 type CurrentRequest struct {
-	Path string `json:"path"`
+	Path   string `json:"path"`
+	Origin string `json:"origin"`
 }
 
 type SeekRequest struct {
@@ -45,6 +46,7 @@ type SeekRequest struct {
 type SettingsRequest struct {
 	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	EditorFileSyncEnabled       bool   `json:"editor_file_sync_enabled"`
 	SeekEnabled                 bool   `json:"seek_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
@@ -118,7 +120,7 @@ func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
 		return
 	}
-	resp, status, err := s.app.SetCurrent(r.Context(), req.Path)
+	resp, status, err := s.app.SetCurrent(r.Context(), req.Path, req.Origin)
 	if err != nil {
 		writeJSON(w, status, api.Fail(err))
 		return
@@ -170,6 +172,7 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
 		AutoRefreshPaused:           req.AutoRefreshPaused,
 		SidebarCollapsed:            req.SidebarCollapsed,
+		EditorFileSyncEnabled:       req.EditorFileSyncEnabled,
 		SeekEnabled:                 req.SeekEnabled,
 		TypstPreviewTheme:           req.TypstPreviewTheme,
 		MarkdownFrontMatterVisible:  req.MarkdownFrontMatterVisible,
@@ -238,6 +241,11 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	status := http.StatusOK
+	if !s.isAppRoute(name) {
+		status = http.StatusNotFound
+	}
+
 	data, err := fs.ReadFile(s.static, "index.html")
 	if err != nil {
 		http.NotFound(w, r)
@@ -245,10 +253,23 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if r.Method == http.MethodHead {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(status)
 		return
 	}
+	w.WriteHeader(status)
 	_, _ = w.Write(data)
+}
+
+func (s *Server) isAppRoute(name string) bool {
+	if name == "" {
+		return true
+	}
+	for _, file := range s.app.Snapshot().Files.Files {
+		if file.Path == name {
+			return true
+		}
+	}
+	return false
 }
 
 func writeSSE(w http.ResponseWriter, event api.Event) {

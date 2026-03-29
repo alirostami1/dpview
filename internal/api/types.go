@@ -91,6 +91,7 @@ type FilesData struct {
 type Settings struct {
 	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	EditorFileSyncEnabled       bool   `json:"editor_file_sync_enabled"`
 	SeekEnabled                 bool   `json:"seek_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`

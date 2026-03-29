@@ -10,6 +10,7 @@ local defaults = {
   host = "127.0.0.1",
   port = nil,
   sidebar_collapsed = false,
+  editor_file_sync = true,
   theme = nil,
   preview_theme = "default",
   typst_preview_theme = true,
@@ -93,7 +94,7 @@ local function create_commands()
   end, {})
 
   vim.api.nvim_create_user_command("DPviewSync", function()
-    require("dpview").sync_current_buffer({ bufnr = 0, force_start = true })
+    require("dpview").sync_current_buffer({ bufnr = 0, force_start = true, force_current = true })
   end, {})
 
   vim.api.nvim_create_user_command("DPviewStatus", function()
@@ -111,11 +112,24 @@ local function create_commands()
   vim.api.nvim_create_user_command("DPviewSeekToggle", function()
     require("dpview").set_seek_enabled(not state.config.cursor_seek)
   end, {})
+
+  vim.api.nvim_create_user_command("DPviewFileSyncEnable", function()
+    require("dpview").set_file_sync_enabled(true)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewFileSyncDisable", function()
+    require("dpview").set_file_sync_enabled(false)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewFileSyncToggle", function()
+    require("dpview").set_file_sync_enabled(not state.config.editor_file_sync)
+  end, {})
 end
 
 local function current_settings_payload()
   return {
     sidebar_collapsed = state.config.sidebar_collapsed,
+    editor_file_sync_enabled = state.config.editor_file_sync,
     seek_enabled = state.config.cursor_seek,
     typst_preview_theme = state.config.typst_preview_theme,
     markdown_frontmatter_visible = state.config.markdown_frontmatter_visible,
@@ -199,7 +213,7 @@ function M.start()
       end
       return
     end
-    sync.sync_current(state, { bufnr = 0, force_start = true })
+    sync.sync_current(state, { bufnr = 0, force_start = true, force_current = true })
   end)
 end
 
@@ -221,7 +235,7 @@ function M.open()
       return
     end
     server.open_browser(state)
-    sync.sync_current(state, { bufnr = 0, force_start = true })
+    sync.sync_current(state, { bufnr = 0, force_start = true, force_current = true })
   end)
 end
 
@@ -232,6 +246,7 @@ function M.status()
     ("running: %s"):format(server.is_running(state) and "yes" or "no"),
     ("auto_start: %s"):format(state.config.auto_start and "true" or "false"),
     ("sidebar_collapsed: %s"):format(state.config.sidebar_collapsed and "true" or "false"),
+    ("editor_file_sync: %s"):format(state.config.editor_file_sync and "true" or "false"),
     ("cursor_seek: %s"):format(state.config.cursor_seek and "true" or "false"),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
@@ -251,6 +266,12 @@ function M.set_seek_enabled(enabled)
   state.config.cursor_seek = enabled and true or false
   sync_settings()
   notify(vim.log.levels.INFO, "DPview seeking " .. (state.config.cursor_seek and "enabled" or "disabled"))
+end
+
+function M.set_file_sync_enabled(enabled)
+  state.config.editor_file_sync = enabled and true or false
+  sync_settings()
+  notify(vim.log.levels.INFO, "DPview editor file sync " .. (state.config.editor_file_sync and "enabled" or "disabled"))
 end
 
 function M._state()

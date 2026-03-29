@@ -52,7 +52,10 @@ func (s *Service) Health() api.HealthData {
 	}
 }
 
-func (s *Service) SetCurrent(ctx context.Context, rel string) (api.CurrentData, int, *api.Error) {
+func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.CurrentData, int, *api.Error) {
+	if origin == "editor" && !s.store.Snapshot().Settings.Settings.EditorFileSyncEnabled {
+		return api.CurrentData{}, http.StatusConflict, api.NewError("editor_file_sync_disabled", "Editor-driven file sync is disabled", "")
+	}
 	abs, info, apiErr, status := s.resolvePath(rel)
 	if apiErr != nil {
 		return api.CurrentData{}, status, apiErr
@@ -60,7 +63,10 @@ func (s *Service) SetCurrent(ctx context.Context, rel string) (api.CurrentData, 
 	s.store.PublishRenderStarted(&info)
 	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
 	selectionChanged := s.currentPath() != info.Path
-	return s.store.SetCurrent(&info, preview, "api", selectionChanged), http.StatusOK, nil
+	if origin == "" {
+		origin = "api"
+	}
+	return s.store.SetCurrent(&info, preview, origin, selectionChanged), http.StatusOK, nil
 }
 
 func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error) {

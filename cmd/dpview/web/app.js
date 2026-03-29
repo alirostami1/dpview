@@ -2,7 +2,6 @@ const STORAGE = {
   expanded: "dpview.expanded",
   currentPath: "dpview.currentPath",
   search: "dpview.search",
-  page: "dpview.page",
   theme: "dpview.theme",
   previewTheme: "dpview.previewTheme",
   sidebarCollapsed: "dpview.sidebarCollapsed",
@@ -18,6 +17,7 @@ const state = {
   settings: {
     auto_refresh_paused: false,
     sidebar_collapsed: false,
+    editor_file_sync_enabled: true,
     seek_enabled: true,
     typst_preview_theme: true,
     markdown_frontmatter_visible: true,
@@ -30,7 +30,6 @@ const state = {
   seek: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
-  page: localStorage.getItem(STORAGE.page) || "file",
   theme: localStorage.getItem(STORAGE.theme) || "system",
   previewTheme: localStorage.getItem(STORAGE.previewTheme) || "default",
   sidebarCollapsed: false,
@@ -52,6 +51,7 @@ const pauseRefreshInput = document.getElementById("pause-refresh");
 const themeSelect = document.getElementById("theme");
 const previewThemeSelect = document.getElementById("preview-theme");
 const typstPreviewThemeInput = document.getElementById("typst-preview-theme");
+const editorFileSyncInput = document.getElementById("editor-file-sync");
 const seekEnabledInput = document.getElementById("seek-enabled");
 const markdownFrontMatterVisibleInput = document.getElementById("markdown-frontmatter-visible");
 const markdownFrontMatterExpandedInput = document.getElementById("markdown-frontmatter-expanded");
@@ -60,8 +60,11 @@ const openSettingsButton = document.getElementById("open-settings");
 const closeSettingsButton = document.getElementById("close-settings");
 const toggleSidebarButton = document.getElementById("toggle-sidebar");
 const showSidebarButton = document.getElementById("show-sidebar");
+const goHomeButton = document.getElementById("go-home");
+const notFoundMessageEl = document.getElementById("not-found-message");
 const fileViewEl = document.getElementById("file-view");
 const settingsViewEl = document.getElementById("settings-view");
+const notFoundViewEl = document.getElementById("not-found-view");
 
 searchInput.value = state.search;
 themeSelect.value = state.theme;
@@ -76,10 +79,20 @@ searchInput.addEventListener("input", () => {
   renderTree();
 });
 
-openSettingsButton.addEventListener("click", () => setPage(state.page === "settings" ? "file" : "settings"));
-closeSettingsButton.addEventListener("click", () => setPage("file"));
+openSettingsButton.addEventListener("click", () => {
+  if (isSettingsRoute()) {
+    navigateToCurrentFile();
+    return;
+  }
+  navigateToSettings();
+});
+closeSettingsButton.addEventListener("click", () => navigateToCurrentFile());
+goHomeButton.addEventListener("click", () => navigateToCurrentFile());
 toggleSidebarButton.addEventListener("click", () => setSidebarCollapsed(true));
 showSidebarButton.addEventListener("click", () => setSidebarCollapsed(false));
+window.addEventListener("popstate", () => {
+  applyRoute(parseRoute(window.location.pathname, window.location.search));
+});
 
 pauseRefreshInput.addEventListener("change", async () => {
   const previous = state.settings.auto_refresh_paused;
@@ -115,6 +128,18 @@ typstPreviewThemeInput.addEventListener("change", async () => {
   if (!result.ok) {
     state.settings.typst_preview_theme = previous;
     typstPreviewThemeInput.checked = previous;
+    return;
+  }
+  setStatus("Settings updated.");
+});
+
+editorFileSyncInput.addEventListener("change", async () => {
+  const previous = state.settings.editor_file_sync_enabled;
+  state.settings.editor_file_sync_enabled = editorFileSyncInput.checked;
+  const result = await syncSettings();
+  if (!result.ok) {
+    state.settings.editor_file_sync_enabled = previous;
+    editorFileSyncInput.checked = previous;
     return;
   }
   setStatus("Settings updated.");
@@ -252,10 +277,9 @@ async function apiFetch(path, options = {}) {
 }
 
 function setPage(page) {
-  state.page = page;
-  localStorage.setItem(STORAGE.page, page);
   fileViewEl.classList.toggle("hidden", page !== "file");
   settingsViewEl.classList.toggle("hidden", page !== "settings");
+  notFoundViewEl.classList.toggle("hidden", page !== "not-found");
 }
 
 function filteredNodes(nodes) {
@@ -519,6 +543,7 @@ function applySettings(data) {
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
     sidebar_collapsed: !!settings.sidebar_collapsed,
+    editor_file_sync_enabled: settings.editor_file_sync_enabled !== false,
     seek_enabled: settings.seek_enabled !== false,
     typst_preview_theme: settings.typst_preview_theme !== false,
     markdown_frontmatter_visible: settings.markdown_frontmatter_visible !== false,
@@ -537,6 +562,7 @@ function applySettings(data) {
   localStorage.setItem(STORAGE.sidebarCollapsed, String(state.sidebarCollapsed));
   renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
+  editorFileSyncInput.checked = !!state.settings.editor_file_sync_enabled;
   seekEnabledInput.checked = !!state.settings.seek_enabled;
   typstPreviewThemeInput.checked = !!state.settings.typst_preview_theme;
   markdownFrontMatterVisibleInput.checked = !!state.settings.markdown_frontmatter_visible;
@@ -556,6 +582,7 @@ function currentSettingsPayload() {
   return {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
     sidebar_collapsed: !!state.sidebarCollapsed,
+    editor_file_sync_enabled: !!state.settings.editor_file_sync_enabled,
     seek_enabled: !!state.settings.seek_enabled,
     typst_preview_theme: !!state.settings.typst_preview_theme,
     markdown_frontmatter_visible: !!state.settings.markdown_frontmatter_visible,
@@ -775,26 +802,23 @@ async function setCurrent(path) {
   const result = await apiFetch("/api/current", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify({ path, origin: "web" }),
   });
   if (!result.ok) {
     setStatus(result.error.message);
     state.localSelectionInFlight = "";
     return;
   }
-  setPage("file");
   applyCurrent(result.data);
+  navigateToFilePath(path, { replace: true });
 }
 
 function syncLocationPath(path) {
-  const url = new URL(window.location.href);
-  url.pathname = encodeAppPath(path);
-  url.search = "";
-  window.history.replaceState({}, "", url);
+  syncCurrentPath(path);
 }
 
 async function loadInitialState() {
-  const initialDeepLinkPath = locationDeepLinkPath();
+  const initialRoute = parseRoute(window.location.pathname, window.location.search);
   const [health, files, current, seek, settings] = await Promise.all([
     apiFetch("/api/health"),
     apiFetch("/api/files"),
@@ -813,7 +837,7 @@ async function loadInitialState() {
   applyCurrent(current.data);
   applySeek(seek.data);
   applySettings(settings.data);
-  setPage(state.page);
+  applyRoute(initialRoute);
 
   const initialSettings = settings.data.settings || {};
   if (
@@ -825,9 +849,10 @@ async function loadInitialState() {
   }
 
   const storedPath = localStorage.getItem(STORAGE.currentPath);
+  const routedPath = initialRoute.kind === "file" ? initialRoute.path : "";
   const preferredPath =
-    initialDeepLinkPath || (!current.data.current && storedPath ? storedPath : "");
-  if (preferredPath && preferredPath !== current.data.file?.path) {
+    routedPath || (!current.data.current && storedPath ? storedPath : "");
+  if (preferredPath && preferredPath !== current.data.file?.path && fileExists(preferredPath)) {
     await setCurrent(preferredPath);
   }
 }
@@ -868,5 +893,89 @@ loadInitialState()
   .then(connectEvents)
   .catch((error) => {
     setStatus(error.message || "Failed to load application state");
-    setPage("settings");
+    applyRoute({ kind: "settings" });
   });
+
+function fileExists(path) {
+  return state.files.some((file) => file.path === path);
+}
+
+function parseRoute(pathname, search = "") {
+  const params = new URLSearchParams(search);
+  const settingsOpen = params.get("settings") === "open";
+  const decodedPath = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((part) => decodeURIComponent(part));
+
+  if (settingsOpen) {
+    return { kind: "settings" };
+  }
+  if (decodedPath.length === 0) {
+    return { kind: "file", path: "" };
+  }
+  const filePath = decodedPath.join("/");
+  return { kind: "file", path: filePath };
+}
+
+function isSettingsRoute() {
+  return parseRoute(window.location.pathname, window.location.search).kind === "settings";
+}
+
+function applyRoute(route) {
+  if (route.kind === "settings") {
+    setPage("settings");
+    return;
+  }
+  if (route.kind === "file") {
+    if (!route.path || fileExists(route.path) || state.files.length === 0) {
+      setPage("file");
+      if (route.path && state.current?.file?.path !== route.path && fileExists(route.path)) {
+        void setCurrent(route.path);
+      }
+      return;
+    }
+    showNotFound(`No previewable file exists at "${route.path}".`);
+    return;
+  }
+  showNotFound("That route does not exist in DPview.");
+}
+
+function showNotFound(message) {
+  notFoundMessageEl.textContent = message;
+  setPage("not-found");
+}
+
+function navigateToSettings(options = {}) {
+  const { replace = false } = options;
+  const url = new URL(window.location.href);
+  url.searchParams.set("settings", "open");
+  window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  applyRoute(parseRoute(url.pathname, url.search));
+}
+
+function navigateToCurrentFile(options = {}) {
+  navigateToFilePath(state.current?.file?.path || "", {
+    ...options,
+    preserveSettings: false,
+  });
+}
+
+function navigateToFilePath(path, options = {}) {
+  const { replace = false, apply = true, preserveSettings = false } = options;
+  const url = new URL(window.location.href);
+  url.pathname = encodeAppPath(path || "");
+  if (!preserveSettings) {
+    url.searchParams.delete("settings");
+  }
+  window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  if (apply) {
+    applyRoute(parseRoute(url.pathname, url.search));
+  }
+}
+
+function syncCurrentPath(path) {
+  const url = new URL(window.location.href);
+  url.pathname = encodeAppPath(path || "");
+  window.history.replaceState({}, "", url);
+}

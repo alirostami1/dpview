@@ -69,7 +69,7 @@ local function post_current(state, relpath)
     host = state.config.host,
     port = state.server.port,
     path = "/api/current",
-    body = vim.json.encode({ path = relpath }),
+    body = vim.json.encode({ path = relpath, origin = "editor" }),
   }, function(err, response, payload)
     if err then
       notify(state, vim.log.levels.ERROR, "failed to sync buffer: " .. err)
@@ -130,6 +130,9 @@ end
 
 function M.sync_current(state, opts)
   opts = opts or {}
+  if state.config.editor_file_sync == false and not opts.force_current then
+    return
+  end
   local relpath = M.previewable_path(state, opts.bufnr or 0)
   if not relpath then
     return

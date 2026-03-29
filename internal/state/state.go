@@ -37,6 +37,7 @@ func NewStore() *Store {
 		preview: api.Preview{Status: api.RenderStatusIdle},
 		settings: api.Settings{
 			SidebarCollapsed:            false,
+			EditorFileSyncEnabled:       true,
 			SeekEnabled:                 true,
 			TypstPreviewTheme:           true,
 			MarkdownFrontMatterVisible:  true,

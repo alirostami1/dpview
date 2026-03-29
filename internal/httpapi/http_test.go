@@ -87,6 +87,18 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	if resp.StatusCode != http.StatusOK || body != "ok" {
 		t.Fatalf("GET /notes/test.md status=%d body=%s", resp.StatusCode, body)
 	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/missing", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusNotFound || body != "ok" {
+		t.Fatalf("GET /missing status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/settings", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusNotFound || body != "ok" {
+		t.Fatalf("GET /settings status=%d body=%s", resp.StatusCode, body)
+	}
 }
 
 func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
@@ -101,7 +113,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		seekErr:       api.NewError("current_mismatch", "seek path must match the current file", ""),
 		seekStatus:    http.StatusConflict,
 		seek:          api.SeekData{Path: "notes/test.md", Line: 12, TopLine: 8, BottomLine: 16, FocusLine: 12},
-		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
+		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
 	})
@@ -147,9 +159,9 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("DELETE /api/current status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"seek_enabled":false,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"editor_file_sync_enabled":false,"seek_enabled":false,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
 	}
 }
@@ -169,7 +181,7 @@ type fakeApp struct {
 	settings      api.SettingsData
 }
 
-func (f fakeApp) SetCurrent(context.Context, string) (api.CurrentData, int, *api.Error) {
+func (f fakeApp) SetCurrent(context.Context, string, string) (api.CurrentData, int, *api.Error) {
 	if f.setErr != nil {
 		return api.CurrentData{}, f.setStatus, f.setErr
 	}

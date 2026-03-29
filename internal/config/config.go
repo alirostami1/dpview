@@ -12,6 +12,7 @@ type Config struct {
 	Bind                        string
 	Port                        int
 	SidebarClosed               bool
+	EditorFileSync              bool
 	SeekEnabled                 bool
 	TypstPreviewTheme           bool
 	MarkdownFrontMatterVisible  bool
@@ -32,6 +33,7 @@ func Parse() (Config, error) {
 	flag.StringVar(&cfg.Bind, "bind", "127.0.0.1", "bind address")
 	flag.IntVar(&cfg.Port, "port", 8090, "port to listen on")
 	flag.BoolVar(&cfg.SidebarClosed, "sidebar-closed", false, "start with the sidebar collapsed")
+	flag.BoolVar(&cfg.EditorFileSync, "editor-file-sync", true, "allow editor integrations to switch the current preview file")
 	flag.BoolVar(&cfg.SeekEnabled, "seek-enabled", true, "enable source seeking between editor integrations and the preview")
 	flag.BoolVar(&cfg.TypstPreviewTheme, "typst-preview-theme", true, "apply DPview preview theming to Typst documents")
 	flag.BoolVar(&cfg.MarkdownFrontMatterVisible, "markdown-frontmatter-visible", true, "show parsed Markdown front matter above the preview")

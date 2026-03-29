@@ -280,6 +280,32 @@ select {
   font-size: 1.25rem;
 }
 
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty-state h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+}
+
+.empty-state-code {
+  margin: 0;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.empty-state-copy {
+  max-width: 34rem;
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
 .hidden {
   display: none;
 }
@@ -320,6 +346,19 @@ select {
   margin-bottom: 1rem;
 }
 
+.settings-group + .settings-group {
+  margin-top: 1.25rem;
+}
+
+.settings-group h3 {
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .status {
   margin-bottom: 0.75rem;
   color: var(--muted);
@@ -350,8 +389,20 @@ select {
 }
 
 .setting-label {
-  flex: 0 0 10rem;
+  color: inherit;
+  font-weight: 600;
+}
+
+.setting-meta {
+  flex: 0 0 12rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.setting-description {
   color: var(--muted);
+  font-size: 0.9em;
+  line-height: 1.35;
 }
 
 .setting-row select {

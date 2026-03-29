@@ -44,67 +44,119 @@
 
               <section class="settings-block">
                 <h2>Settings</h2>
-                <label class="setting-row">
-                  <span class="setting-label">Theme</span>
-                  <select id="theme">
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </label>
-                <label class="setting-row">
-                  <span class="setting-label">Preview theme</span>
-                  <select id="preview-theme">
-                    <option value="default">Default</option>
-                    <option value="github">GitHub Markdown</option>
-                    <option value="notion">Notion</option>
-                    <option value="paper">Paper</option>
-                  </select>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Typst preview theming</span>
-                  <span class="setting-control">
-                    <input id="typst-preview-theme" type="checkbox" checked>
-                    <span>Apply DPview preview theming to Typst</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Seeking</span>
-                  <span class="setting-control">
-                    <input id="seek-enabled" type="checkbox" checked>
-                    <span>Keep the preview aligned with editor viewport updates</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Markdown front matter</span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-visible" type="checkbox" checked>
-                    <span>Show parsed front matter above Markdown</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Front matter expanded</span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-expanded" type="checkbox" checked>
-                    <span>Open front matter panels by default</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Front matter title</span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-title" type="checkbox" checked>
-                    <span>Use front matter title as the first H1 when missing</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-label">Auto refresh</span>
-                  <span class="setting-control">
-                    <input id="pause-refresh" type="checkbox">
-                    <span>Pause auto refresh</span>
-                  </span>
-                </label>
+                <div class="settings-group">
+                  <h3>Appearance</h3>
+                  <label class="setting-row">
+                    <span class="setting-meta">
+                      <span class="setting-label">App theme</span>
+                    </span>
+                    <select id="theme">
+                      <option value="system">System</option>
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                    </select>
+                  </label>
+                  <label class="setting-row">
+                    <span class="setting-meta">
+                      <span class="setting-label">Document theme</span>
+                    </span>
+                    <select id="preview-theme">
+                      <option value="default">Default</option>
+                      <option value="github">GitHub Markdown</option>
+                      <option value="notion">Notion</option>
+                      <option value="paper">Paper</option>
+                    </select>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Theme Typst previews</span>
+                      <span class="setting-description">Apply the selected document theme to Typst output.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="typst-preview-theme" type="checkbox" checked>
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div class="settings-group">
+                  <h3>Sync</h3>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Follow editor file</span>
+                      <span class="setting-description">Switch the preview when the editor changes to a different file.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="editor-file-sync" type="checkbox" checked>
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Follow editor position</span>
+                      <span class="setting-description">Keep the preview aligned with the editor viewport inside the current file.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="seek-enabled" type="checkbox" checked>
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Auto refresh</span>
+                      <span class="setting-description">Pause live rerendering when files change on disk.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="pause-refresh" type="checkbox">
+                      <span>Paused</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div class="settings-group">
+                  <h3>Front matter</h3>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Show panel</span>
+                      <span class="setting-description">Display parsed YAML metadata above Markdown previews.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="markdown-frontmatter-visible" type="checkbox" checked>
+                      <span>Visible</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Start open</span>
+                      <span class="setting-description">Open the front matter panel by default.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="markdown-frontmatter-expanded" type="checkbox" checked>
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Use title as heading</span>
+                      <span class="setting-description">Promote front matter <code>title</code> to an H1 when the document has none.</span>
+                    </span>
+                    <span class="setting-control">
+                      <input id="markdown-frontmatter-title" type="checkbox" checked>
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                </div>
               </section>
             </div>
+          </div>
+        </section>
+
+        <section id="not-found-view" class="panel hidden">
+          <div class="empty-state">
+            <p class="empty-state-code">404</p>
+            <h1>Page not found</h1>
+            <p id="not-found-message" class="empty-state-copy">That route does not exist in DPview.</p>
+            <button id="go-home" type="button">Go to preview</button>
           </div>
         </section>
       </main>
