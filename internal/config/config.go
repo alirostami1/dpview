@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	ShowVersion                 bool
 	Root                        string
 	Bind                        string
 	Port                        int
@@ -28,6 +29,7 @@ type Config struct {
 
 func Parse() (Config, error) {
 	cfg := Config{}
+	flag.BoolVar(&cfg.ShowVersion, "version", false, "print version and exit")
 	flag.StringVar(&cfg.Root, "root", ".", "root folder to scan for previewable files")
 	flag.StringVar(&cfg.Bind, "bind", "127.0.0.1", "bind address")
 	flag.IntVar(&cfg.Port, "port", 8090, "port to listen on")
@@ -45,6 +47,10 @@ func Parse() (Config, error) {
 	flag.Int64Var(&cfg.MaxFileSize, "max-file-size", 4<<20, "maximum previewable source size in bytes")
 	flag.DurationVar(&cfg.RenderTimeout, "render-timeout", 5*time.Second, "per-render timeout")
 	flag.Parse()
+
+	if cfg.ShowVersion {
+		return cfg, nil
+	}
 
 	root, err := filepath.Abs(cfg.Root)
 	if err != nil {

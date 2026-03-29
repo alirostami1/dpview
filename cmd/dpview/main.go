@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -19,10 +20,20 @@ import (
 //go:embed web
 var embedded embed.FS
 
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	cfg, err := config.Parse()
 	if err != nil {
 		log.Fatalf("config: %v", err)
+	}
+	if cfg.ShowVersion {
+		fmt.Println(versionString())
+		return
 	}
 
 	fileService, err := files.NewService(cfg.Root)
@@ -94,4 +105,11 @@ func main() {
 		log.Printf("server error: %v", err)
 		os.Exit(1)
 	}
+}
+
+func versionString() string {
+	if commit == "unknown" && date == "unknown" {
+		return fmt.Sprintf("dpview %s", version)
+	}
+	return fmt.Sprintf("dpview %s (%s, %s)", version, commit, date)
 }
