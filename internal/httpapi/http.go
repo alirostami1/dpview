@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/state"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/state"
 )
 
 type Application interface {

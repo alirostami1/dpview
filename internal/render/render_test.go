@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/files"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/files"
 )
 
 func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {

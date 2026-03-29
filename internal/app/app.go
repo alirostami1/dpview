@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/files"
-	"codeberg.org/aros/dpview.git/internal/render"
-	"codeberg.org/aros/dpview.git/internal/state"
-	"codeberg.org/aros/dpview.git/internal/watch"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/files"
+	"codeberg.org/aros/dpview/internal/render"
+	"codeberg.org/aros/dpview/internal/state"
+	"codeberg.org/aros/dpview/internal/watch"
 )
 
 type Service struct {

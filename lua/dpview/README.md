@@ -9,7 +9,7 @@ Theme settings are passed to DPview as startup flags.
 ## Requirements
 
 - Neovim 0.11+
-- a `dpview` binary on `PATH`, a repo-local build such as `build/dpview` or `build/main`, or this repo available for `go run ./app/cmd`
+- a `dpview` binary on `PATH`, a repo-local build such as `build/dpview` or `build/main`, or this repo available for `go run ./cmd/dpview`
 - `typst` installed if you want Typst previews
 
 ## Installation
@@ -88,7 +88,7 @@ require("dpview").setup({
 Options:
 
 - `binary`: explicit path to the `dpview` executable
-- `go_run_fallback`: allow `go run ./app/cmd` when the startup directory is this repo
+- `go_run_fallback`: allow `go run ./cmd/dpview` when the startup directory is this repo
 - `host`: bind address for the local DPview server
 - `port`: fixed port, or `nil` to let the plugin choose a high local port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed

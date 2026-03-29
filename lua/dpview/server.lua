@@ -30,7 +30,7 @@ local function pick_free_port(host)
 end
 
 local function repo_go_fallback(root)
-  return path_exists(join(root, "go.mod")) and path_exists(join(root, "app/cmd/main.go"))
+  return path_exists(join(root, "go.mod")) and path_exists(join(root, "cmd", "dpview", "main.go"))
 end
 
 function M.resolve_command(state)
@@ -56,7 +56,7 @@ function M.resolve_command(state)
   end
 
   if config.go_run_fallback and repo_go_fallback(root) then
-    return { "go", "run", "./app/cmd" }, "go run fallback"
+    return { "go", "run", "./cmd/dpview" }, "go run fallback"
   end
 
   return nil, "dpview executable not found"

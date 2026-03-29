@@ -51,7 +51,7 @@ Install this repository as a Neovim plugin with your plugin manager, then call
 Options:
 
 - `binary`: explicit path to the `dpview` executable
-- `go_run_fallback`: allow `go run ./app/cmd` when this repo is the startup root
+- `go_run_fallback`: allow `go run ./cmd/dpview` when this repo is the startup root
 - `host`: bind address for the local server
 - `port`: fixed port, or `nil` to auto-pick a free localhost port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed

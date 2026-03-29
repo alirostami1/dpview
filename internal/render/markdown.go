@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/files"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/files"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"

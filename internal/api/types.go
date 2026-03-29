@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/files"
+	"codeberg.org/aros/dpview/internal/files"
 )
 
 const (

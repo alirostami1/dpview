@@ -22,10 +22,16 @@ Markdown previews still work when Typst is unavailable.
 make build
 ```
 
+## Install
+
+```bash
+go install codeberg.org/aros/dpview/cmd/dpview@latest
+```
+
 ## Run
 
 ```bash
-./dpview --root /path/to/docs --bind 127.0.0.1 --port 8090
+dpview --root /path/to/docs --bind 127.0.0.1 --port 8090
 ```
 
 Open `http://127.0.0.1:8090`.

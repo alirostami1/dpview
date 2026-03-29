@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"os"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/app"
-	"codeberg.org/aros/dpview.git/internal/config"
-	"codeberg.org/aros/dpview.git/internal/files"
-	"codeberg.org/aros/dpview.git/internal/httpapi"
-	"codeberg.org/aros/dpview.git/internal/render"
-	"codeberg.org/aros/dpview.git/internal/state"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/app"
+	"codeberg.org/aros/dpview/internal/config"
+	"codeberg.org/aros/dpview/internal/files"
+	"codeberg.org/aros/dpview/internal/httpapi"
+	"codeberg.org/aros/dpview/internal/render"
+	"codeberg.org/aros/dpview/internal/state"
 )
 
 //go:embed web/*

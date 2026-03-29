@@ -9,9 +9,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/files"
-	"codeberg.org/aros/dpview.git/internal/state"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/files"
+	"codeberg.org/aros/dpview/internal/state"
 )
 
 func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {

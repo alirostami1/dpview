@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/aros/dpview.git/internal/api"
-	"codeberg.org/aros/dpview.git/internal/files"
+	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/files"
 )
 
 type CommandRunner interface {
