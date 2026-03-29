@@ -38,11 +38,11 @@ body[data-theme="dark"] .markdown-theme {
   font: 85% ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
-body[data-theme="light"] .markdown-theme code {
+body[data-theme="light"] .markdown-theme :not(pre) > code {
   background: rgba(125, 96, 55, 0.08);
 }
 
-body[data-theme="dark"] .markdown-theme code {
+body[data-theme="dark"] .markdown-theme :not(pre) > code {
   background: rgba(214, 190, 150, 0.12);
 }
 
@@ -58,6 +58,10 @@ body[data-theme="light"] .markdown-theme pre {
 body[data-theme="dark"] .markdown-theme pre {
   border: 1px solid #4b4338;
   background: #201c17;
+}
+
+.markdown-theme pre code {
+  background: transparent;
 }
 
 .markdown-theme blockquote {

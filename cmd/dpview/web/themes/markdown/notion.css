@@ -35,11 +35,11 @@ body[data-theme="dark"] .markdown-theme {
   font: 85% ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
-body[data-theme="light"] .markdown-theme code {
+body[data-theme="light"] .markdown-theme :not(pre) > code {
   background: #f1f1ef;
 }
 
-body[data-theme="dark"] .markdown-theme code {
+body[data-theme="dark"] .markdown-theme :not(pre) > code {
   background: #2b2b2a;
 }
 
