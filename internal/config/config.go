@@ -8,17 +8,18 @@ import (
 )
 
 type Config struct {
-	Root          string
-	Bind          string
-	Port          int
-	SidebarClosed bool
-	Theme         string
-	PreviewTheme  string
-	TypstBinary   string
-	LogLevel      string
-	OpenBrowser   bool
-	MaxFileSize   int64
-	RenderTimeout time.Duration
+	Root              string
+	Bind              string
+	Port              int
+	SidebarClosed     bool
+	TypstPreviewTheme bool
+	Theme             string
+	PreviewTheme      string
+	TypstBinary       string
+	LogLevel          string
+	OpenBrowser       bool
+	MaxFileSize       int64
+	RenderTimeout     time.Duration
 }
 
 func Parse() (Config, error) {
@@ -27,6 +28,7 @@ func Parse() (Config, error) {
 	flag.StringVar(&cfg.Bind, "bind", "127.0.0.1", "bind address")
 	flag.IntVar(&cfg.Port, "port", 8090, "port to listen on")
 	flag.BoolVar(&cfg.SidebarClosed, "sidebar-closed", false, "start with the sidebar collapsed")
+	flag.BoolVar(&cfg.TypstPreviewTheme, "typst-preview-theme", true, "apply DPview preview theming to Typst documents")
 	flag.StringVar(&cfg.Theme, "theme", "light", "initial app theme: light or dark")
 	flag.StringVar(&cfg.PreviewTheme, "preview-theme", "default", "initial preview theme id")
 	flag.StringVar(&cfg.TypstBinary, "typst-binary", "", "path to Typst executable to use instead of PATH lookup")

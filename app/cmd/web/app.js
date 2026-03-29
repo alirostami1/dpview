@@ -15,7 +15,13 @@ const state = {
   files: [],
   tree: [],
   current: null,
-  settings: { auto_refresh_paused: false, sidebar_collapsed: false, theme: "light", preview_theme: "default" },
+  settings: {
+    auto_refresh_paused: false,
+    sidebar_collapsed: false,
+    typst_preview_theme: true,
+    theme: "light",
+    preview_theme: "default",
+  },
   health: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
@@ -38,6 +44,7 @@ const searchInput = document.getElementById("search");
 const pauseRefreshInput = document.getElementById("pause-refresh");
 const themeSelect = document.getElementById("theme");
 const previewThemeSelect = document.getElementById("preview-theme");
+const typstPreviewThemeInput = document.getElementById("typst-preview-theme");
 const openSettingsButton = document.getElementById("open-settings");
 const closeSettingsButton = document.getElementById("close-settings");
 const toggleSidebarButton = document.getElementById("toggle-sidebar");
@@ -88,6 +95,18 @@ previewThemeSelect.addEventListener("change", async () => {
   applyMarkdownTheme(state.previewTheme);
   renderPreview();
   await syncSettings({ rerenderTypst: true });
+});
+
+typstPreviewThemeInput.addEventListener("change", async () => {
+  const previous = state.settings.typst_preview_theme;
+  state.settings.typst_preview_theme = typstPreviewThemeInput.checked;
+  const result = await syncSettings({ rerenderTypst: true });
+  if (!result.ok) {
+    state.settings.typst_preview_theme = previous;
+    typstPreviewThemeInput.checked = previous;
+    return;
+  }
+  setStatus("Settings updated.");
 });
 
 function setStatus(message) {
@@ -342,6 +361,7 @@ function applySettings(data) {
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
     sidebar_collapsed: !!settings.sidebar_collapsed,
+    typst_preview_theme: settings.typst_preview_theme !== false,
     theme: settings.theme || "light",
     preview_theme: settings.preview_theme || "default",
   };
@@ -355,12 +375,14 @@ function applySettings(data) {
   localStorage.setItem(STORAGE.sidebarCollapsed, String(state.sidebarCollapsed));
   renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
+  typstPreviewThemeInput.checked = !!state.settings.typst_preview_theme;
 }
 
 function currentSettingsPayload() {
   return {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
     sidebar_collapsed: !!state.sidebarCollapsed,
+    typst_preview_theme: !!state.settings.typst_preview_theme,
     theme: resolveThemeMode(state.theme),
     preview_theme: state.previewTheme,
   };
@@ -446,7 +468,8 @@ async function loadInitialState() {
   const initialSettings = settings.data.settings || {};
   if (
     resolveThemeMode(state.theme) !== (initialSettings.theme || "light") ||
-    state.previewTheme !== (initialSettings.preview_theme || "default")
+    state.previewTheme !== (initialSettings.preview_theme || "default") ||
+    !!state.settings.typst_preview_theme !== (initialSettings.typst_preview_theme !== false)
   ) {
     await syncSettings({ rerenderTypst: current.data.file?.kind === "typst" });
   }

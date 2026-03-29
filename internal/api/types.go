@@ -64,6 +64,7 @@ type FilesData struct {
 type Settings struct {
 	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed  bool   `json:"sidebar_collapsed"`
+	TypstPreviewTheme bool   `json:"typst_preview_theme"`
 	Theme             string `json:"theme"`
 	PreviewTheme      string `json:"preview_theme"`
 }

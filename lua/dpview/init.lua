@@ -11,6 +11,7 @@ local defaults = {
   sidebar_collapsed = false,
   theme = nil,
   preview_theme = "default",
+  typst_preview_theme = true,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -147,6 +148,7 @@ function M.status()
     ("sidebar_collapsed: %s"):format(state.config.sidebar_collapsed and "true" or "false"),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
+    ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
     ("launch: %s"):format(state.server.launch_label or "not started"),
   }
   if state.server.last_error then

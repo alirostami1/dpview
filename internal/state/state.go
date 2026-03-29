@@ -34,9 +34,10 @@ func NewStore() *Store {
 		version: 1,
 		preview: api.Preview{Status: api.RenderStatusIdle},
 		settings: api.Settings{
-			SidebarCollapsed: false,
-			Theme:            "light",
-			PreviewTheme:     "default",
+			SidebarCollapsed:  false,
+			TypstPreviewTheme: true,
+			Theme:             "light",
+			PreviewTheme:      "default",
 		},
 		subs: make(map[chan api.Event]struct{}),
 	}

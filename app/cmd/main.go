@@ -42,9 +42,10 @@ func main() {
 
 	store := state.NewStore()
 	store.UpdateSettings(api.Settings{
-		SidebarCollapsed: cfg.SidebarClosed,
-		Theme:            cfg.Theme,
-		PreviewTheme:     cfg.PreviewTheme,
+		SidebarCollapsed:  cfg.SidebarClosed,
+		TypstPreviewTheme: cfg.TypstPreviewTheme,
+		Theme:             cfg.Theme,
+		PreviewTheme:      cfg.PreviewTheme,
 	})
 	application := app.New(fileService, renderer, store)
 	if err := application.Rescan(); err != nil {

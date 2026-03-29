@@ -125,11 +125,49 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{Theme: "dark", PreviewTheme: "github"})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{
+		Theme:             "dark",
+		PreviewTheme:      "github",
+		TypstPreviewTheme: true,
+	})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
 	if !strings.Contains(preview.HTML, "data-page=\"1\"") || !strings.Contains(preview.HTML, "<svg><text>two</text></svg>") {
+		t.Fatalf("Render() HTML = %q", preview.HTML)
+	}
+}
+
+func TestRenderTypstWithoutPreviewThemeCompilesSourceDirectly(t *testing.T) {
+	tempRoot := t.TempDir()
+	path := filepath.Join(tempRoot, "demo.typ")
+	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	typst := &typstRenderer{
+		tempRoot: tempRoot,
+		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
+		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
+			if args[3] != path {
+				return nil, nil, errors.New("expected direct typst source compile")
+			}
+			pageOne := strings.ReplaceAll(args[4], "{p}", "1")
+			if err := os.WriteFile(pageOne, []byte("<svg><text>plain</text></svg>"), 0o644); err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, nil
+		}),
+	}
+	svc := &Service{
+		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
+		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{TypstPreviewTheme: false})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if !strings.Contains(preview.HTML, "<svg><text>plain</text></svg>") {
 		t.Fatalf("Render() HTML = %q", preview.HTML)
 	}
 }

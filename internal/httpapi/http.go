@@ -35,6 +35,7 @@ type CurrentRequest struct {
 type SettingsRequest struct {
 	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed  bool   `json:"sidebar_collapsed"`
+	TypstPreviewTheme bool   `json:"typst_preview_theme"`
 	Theme             string `json:"theme"`
 	PreviewTheme      string `json:"preview_theme"`
 }
@@ -129,6 +130,7 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
 		AutoRefreshPaused: req.AutoRefreshPaused,
 		SidebarCollapsed:  req.SidebarCollapsed,
+		TypstPreviewTheme: req.TypstPreviewTheme,
 		Theme:             req.Theme,
 		PreviewTheme:      req.PreviewTheme,
 	})))

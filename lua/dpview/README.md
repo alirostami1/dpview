@@ -24,6 +24,7 @@ Theme settings are passed to DPview as startup flags.
       sidebar_collapsed = true,
       theme = "dark",
       preview_theme = "github",
+      typst_preview_theme = false,
       auto_start = true,
       auto_open_browser = false,
     })
@@ -41,6 +42,7 @@ use({
       sidebar_collapsed = true,
       theme = "dark",
       preview_theme = "github",
+      typst_preview_theme = false,
       auto_start = true,
       auto_open_browser = false,
     })
@@ -59,6 +61,7 @@ require("dpview").setup({
   sidebar_collapsed = true,
   theme = "dark",
   preview_theme = "github",
+  typst_preview_theme = false,
   auto_start = true,
   auto_open_browser = false,
 })
@@ -75,6 +78,7 @@ require("dpview").setup({
   sidebar_collapsed = false,
   theme = "dark",
   preview_theme = "github",
+  typst_preview_theme = true,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -90,6 +94,7 @@ Options:
 - `sidebar_collapsed`: start DPview with the sidebar collapsed
 - `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current `background`
 - `preview_theme`: DPview preview theme id such as `default`, `github`, `notion`, or `paper`
+- `typst_preview_theme`: when false, DPview renders Typst sources directly without injecting preview theme tokens
 - `auto_start`: when false, the plugin never starts DPview automatically
 - `auto_open_browser`: when true, open the browser once after the plugin starts DPview
 - `notify`: enable or disable plugin notifications
@@ -109,6 +114,7 @@ Options:
 - Supported files are `.md`, `.markdown`, `.typ`, and `.typst`.
 - Switching to unsupported buffers leaves the last DPview preview visible.
 - Theme can be controlled from Neovim config through `theme` and `preview_theme`.
+- Typst preview theming can be disabled from Neovim config through `typst_preview_theme`.
 - Sidebar state can be controlled from Neovim config through `sidebar_collapsed`.
 - Sidebar and theme values are passed to DPview at startup with `--sidebar-closed`,
-  `--theme`, and `--preview-theme`.
+  `--theme`, `--preview-theme`, and `--typst-preview-theme`.

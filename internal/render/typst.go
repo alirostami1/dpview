@@ -104,12 +104,16 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 	}
 
 	pattern := filepath.Join(renderDir, "page-{p}.svg")
-	wrapperPath := filepath.Join(renderDir, "dpview-wrapper.typ")
-	if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.AbsPath, req.Settings)), 0o644); err != nil {
-		return errPreview(req.Started, "internal_error", "Failed to prepare Typst theme wrapper", err.Error())
+	compileSource := req.AbsPath
+	if req.Settings.TypstPreviewTheme {
+		wrapperPath := filepath.Join(renderDir, "dpview-wrapper.typ")
+		if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.AbsPath, req.Settings)), 0o644); err != nil {
+			return errPreview(req.Started, "internal_error", "Failed to prepare Typst theme wrapper", err.Error())
+		}
+		compileSource = wrapperPath
 	}
 	cleanupOldSVG(renderDir)
-	_, stderr, err := r.runner.Run(ctx, r.status.Details["path"], "compile", "--root", string(filepath.Separator), wrapperPath, pattern)
+	_, stderr, err := r.runner.Run(ctx, r.status.Details["path"], "compile", "--root", string(filepath.Separator), compileSource, pattern)
 	if err != nil {
 		code := "typst_compile_failed"
 		msg := "Failed to render Typst document"

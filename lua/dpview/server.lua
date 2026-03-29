@@ -190,6 +190,7 @@ function M.start(state, callback)
     state.config.theme,
     "--preview-theme",
     state.config.preview_theme,
+    "--typst-preview-theme=" .. tostring(state.config.typst_preview_theme),
   })
 
   state.server.starting = true

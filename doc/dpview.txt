@@ -41,6 +41,7 @@ Install this repository as a Neovim plugin with your plugin manager, then call
       sidebar_collapsed = false,
       theme = "dark",
       preview_theme = "github",
+      typst_preview_theme = true,
       auto_start = true,
       auto_open_browser = false,
       notify = true,
@@ -58,6 +59,8 @@ Options:
   `background`
 - `preview_theme`: DPview preview theme id such as `default`, `github`,
   `notion`, or `paper`
+- `typst_preview_theme`: when false, DPview renders Typst sources directly
+  without injecting preview theme tokens
 - `auto_start`: when false, the plugin never starts DPview automatically
 - `auto_open_browser`: when true, open the browser once after the plugin starts
   a new DPview process
@@ -65,7 +68,7 @@ Options:
 - `open_cmd`: optional Lua function that receives the DPview URL
 
 Sidebar and theme values are passed to DPview at startup with the matching CLI
-flags.
+flags, including `--typst-preview-theme`.
 
 ==============================================================================
 4. Commands                                                  *dpview-commands*
