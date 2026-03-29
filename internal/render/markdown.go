@@ -32,6 +32,7 @@ func newMarkdownRenderer() *markdownRenderer {
 			extension.Table,
 			extension.TaskList,
 			extension.Linkify,
+			extension.Footnote,
 		),
 		goldmark.WithRendererOptions(
 			gmhtml.WithHardWraps(),
@@ -41,6 +42,8 @@ func newMarkdownRenderer() *markdownRenderer {
 	policy := bluemonday.UGCPolicy()
 	policy.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	policy.AllowAttrs("class").OnElements("article")
+	policy.AllowAttrs("class", "role").OnElements("a", "div")
+	policy.AllowAttrs("id").OnElements("li", "sup")
 	return &markdownRenderer{md: md, sanitize: policy}
 }
 

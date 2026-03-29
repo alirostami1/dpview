@@ -1,3 +1,38 @@
 .markdown-theme {
   color: inherit;
 }
+
+.markdown-theme .footnotes {
+  margin-top: 2.5rem;
+  font-size: 0.95em;
+}
+
+.markdown-theme .footnotes hr {
+  margin-bottom: 1rem;
+  opacity: 0.35;
+}
+
+.markdown-theme .footnotes ol {
+  padding-left: 1.4rem;
+}
+
+.markdown-theme .footnotes li + li {
+  margin-top: 0.8rem;
+}
+
+.markdown-theme sup {
+  line-height: 0;
+}
+
+.markdown-theme .footnote-ref,
+.markdown-theme .footnote-backref {
+  text-decoration: none;
+}
+
+.markdown-theme .footnote-ref {
+  font-weight: 600;
+}
+
+.markdown-theme .footnote-backref {
+  margin-left: 0.35rem;
+}

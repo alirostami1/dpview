@@ -161,6 +161,88 @@ func TestRenderMarkdownSanitizesUnsafeLinks(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownSupportsFootnotes(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "footnotes.md")
+	content := strings.Join([]string{
+		"Paragraph with a footnote.[^1]",
+		"",
+		"[^1]: Footnote body.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+
+	checks := []string{
+		`<sup id="fnref:1">`,
+		`href="#fn:1"`,
+		`class="footnote-ref"`,
+		`role="doc-noteref"`,
+		`<div class="footnotes" role="doc-endnotes">`,
+		`<li id="fn:1">`,
+		`href="#fnref:1"`,
+		`class="footnote-backref"`,
+		`role="doc-backlink"`,
+	}
+	for _, check := range checks {
+		if !strings.Contains(preview.HTML, check) {
+			t.Fatalf("Render() HTML missing %q", check)
+		}
+	}
+}
+
+func TestRenderMarkdownSupportsRepeatedFootnoteReferences(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "footnotes-repeat.md")
+	content := strings.Join([]string{
+		"One[^same]",
+		"",
+		"Two[^same]",
+		"",
+		"[^same]: Shared footnote.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes-repeat.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+
+	checks := []string{
+		`<sup id="fnref:1">`,
+		`<sup id="fnref1:1">`,
+		`href="#fn:1"`,
+		`href="#fnref:1"`,
+		`href="#fnref1:1"`,
+		`class="footnote-backref"`,
+		`role="doc-backlink"`,
+	}
+	for _, check := range checks {
+		if !strings.Contains(preview.HTML, check) {
+			t.Fatalf("Render() HTML missing %q", check)
+		}
+	}
+}
+
 func TestRenderTypstMissingBinaryReturnsClearError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "demo.typ")
 	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {

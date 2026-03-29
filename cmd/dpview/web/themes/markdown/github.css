@@ -128,3 +128,31 @@ body[data-theme="light"] .markdown-theme hr {
 body[data-theme="dark"] .markdown-theme hr {
   border-top-color: #30363d;
 }
+
+.markdown-theme .footnotes {
+  margin-top: 2.5rem;
+  padding-top: 0.5rem;
+  font-size: 0.9em;
+}
+
+.markdown-theme .footnotes ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-theme .footnotes li + li {
+  margin-top: 0.85rem;
+}
+
+.markdown-theme sup {
+  line-height: 0;
+}
+
+.markdown-theme .footnote-ref {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.markdown-theme .footnote-backref {
+  margin-left: 0.35rem;
+  text-decoration: none;
+}
