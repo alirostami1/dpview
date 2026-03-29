@@ -11,6 +11,9 @@ type Config struct {
 	Root          string
 	Bind          string
 	Port          int
+	SidebarClosed bool
+	Theme         string
+	PreviewTheme  string
 	TypstBinary   string
 	LogLevel      string
 	OpenBrowser   bool
@@ -23,6 +26,9 @@ func Parse() (Config, error) {
 	flag.StringVar(&cfg.Root, "root", ".", "root folder to scan for previewable files")
 	flag.StringVar(&cfg.Bind, "bind", "127.0.0.1", "bind address")
 	flag.IntVar(&cfg.Port, "port", 8090, "port to listen on")
+	flag.BoolVar(&cfg.SidebarClosed, "sidebar-closed", false, "start with the sidebar collapsed")
+	flag.StringVar(&cfg.Theme, "theme", "light", "initial app theme: light or dark")
+	flag.StringVar(&cfg.PreviewTheme, "preview-theme", "default", "initial preview theme id")
 	flag.StringVar(&cfg.TypstBinary, "typst-binary", "", "path to Typst executable to use instead of PATH lookup")
 	flag.StringVar(&cfg.LogLevel, "log-level", "info", "log level")
 	flag.BoolVar(&cfg.OpenBrowser, "open-browser", false, "open the browser after startup")
@@ -38,6 +44,12 @@ func Parse() (Config, error) {
 
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return Config{}, fmt.Errorf("invalid port %d", cfg.Port)
+	}
+	if cfg.Theme != "light" && cfg.Theme != "dark" {
+		return Config{}, fmt.Errorf("invalid theme %q", cfg.Theme)
+	}
+	if cfg.PreviewTheme == "" {
+		return Config{}, fmt.Errorf("preview theme must not be empty")
 	}
 	if cfg.MaxFileSize <= 0 {
 		return Config{}, fmt.Errorf("invalid max file size %d", cfg.MaxFileSize)

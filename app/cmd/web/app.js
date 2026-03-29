@@ -15,14 +15,14 @@ const state = {
   files: [],
   tree: [],
   current: null,
-  settings: { auto_refresh_paused: false, theme: "light", preview_theme: "default" },
+  settings: { auto_refresh_paused: false, sidebar_collapsed: false, theme: "light", preview_theme: "default" },
   health: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
   page: localStorage.getItem(STORAGE.page) || "file",
   theme: localStorage.getItem(STORAGE.theme) || "system",
   previewTheme: localStorage.getItem(STORAGE.previewTheme) || "default",
-  sidebarCollapsed: localStorage.getItem(STORAGE.sidebarCollapsed) === "true",
+  sidebarCollapsed: false,
   localSelectionInFlight: "",
   statusMessage: "",
 };
@@ -115,8 +115,10 @@ function applyMarkdownTheme(theme) {
 
 function setSidebarCollapsed(collapsed) {
   state.sidebarCollapsed = collapsed;
+  state.settings.sidebar_collapsed = collapsed;
   localStorage.setItem(STORAGE.sidebarCollapsed, String(collapsed));
   renderSidebar();
+  void syncSettings();
 }
 
 function renderSidebar() {
@@ -339,21 +341,26 @@ function applySettings(data) {
   const storedPreviewTheme = localStorage.getItem(STORAGE.previewTheme);
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
+    sidebar_collapsed: !!settings.sidebar_collapsed,
     theme: settings.theme || "light",
     preview_theme: settings.preview_theme || "default",
   };
   state.theme = storedTheme || state.theme || "system";
   state.previewTheme = storedPreviewTheme || state.settings.preview_theme;
+  state.sidebarCollapsed = state.settings.sidebar_collapsed;
   themeSelect.value = state.theme;
   previewThemeSelect.value = state.previewTheme;
   applyTheme(state.theme);
   applyMarkdownTheme(state.previewTheme);
+  localStorage.setItem(STORAGE.sidebarCollapsed, String(state.sidebarCollapsed));
+  renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
 }
 
 function currentSettingsPayload() {
   return {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
+    sidebar_collapsed: !!state.sidebarCollapsed,
     theme: resolveThemeMode(state.theme),
     preview_theme: state.previewTheme,
   };

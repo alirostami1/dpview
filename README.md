@@ -30,13 +30,12 @@ make build
 
 Open `http://127.0.0.1:8090`.
 
-For a quick theming check in this repo, run against [`examples/`](examples/) as the root:
+## Neovim Plugin
 
-```bash
-./dpview --root ./examples --bind 127.0.0.1 --port 8090
-```
+Neovim plugin can start DPview for the directory
+where Neovim was launched and sync the current Markdown or Typst buffer.
 
-## Preview Theming
+Installation examples and plugin-specific docs live in
+[`lua/dpview/README.md`](lua/dpview/README.md).
 
-Markdown theme files use a shared selector contract documented in [`docs/markdown-theming.md`](docs/markdown-theming.md).
-Typst previews use the same preview theme ids and a Typst wrapper contract documented in [`docs/typst-theming.md`](docs/typst-theming.md).
+See [`doc/dpview.txt`](doc/dpview.txt) for the full option list.

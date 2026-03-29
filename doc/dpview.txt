@@ -1,0 +1,80 @@
+*dpview.txt*  Neovim integration for DPview
+
+==============================================================================
+CONTENTS                                                    *dpview-contents*
+
+1. Introduction.............................................|dpview-intro|
+2. Installation.............................................|dpview-install|
+3. Setup....................................................|dpview-setup|
+4. Commands.................................................|dpview-commands|
+
+==============================================================================
+1. Introduction                                                *dpview-intro*
+
+dpview.nvim starts the DPview web app against the directory where Neovim was
+launched and keeps the current DPview document in sync with the active buffer.
+
+Supported file types:
+
+- Markdown: `.md`, `.markdown`
+- Typst: `.typ`, `.typst`
+
+Switching to unsupported buffers leaves the last DPview preview visible.
+
+==============================================================================
+2. Installation                                              *dpview-install*
+
+Install this repository as a Neovim plugin with your plugin manager, then call
+>
+    require("dpview").setup()
+<
+
+==============================================================================
+3. Setup                                                        *dpview-setup*
+
+>
+    require("dpview").setup({
+      binary = nil,
+      go_run_fallback = true,
+      host = "127.0.0.1",
+      port = nil,
+      sidebar_collapsed = false,
+      theme = "dark",
+      preview_theme = "github",
+      auto_start = true,
+      auto_open_browser = false,
+      notify = true,
+    })
+<
+
+Options:
+
+- `binary`: explicit path to the `dpview` executable
+- `go_run_fallback`: allow `go run ./app/cmd` when this repo is the startup root
+- `host`: bind address for the local server
+- `port`: fixed port, or `nil` to auto-pick a free localhost port
+- `sidebar_collapsed`: start DPview with the sidebar collapsed
+- `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current
+  `background`
+- `preview_theme`: DPview preview theme id such as `default`, `github`,
+  `notion`, or `paper`
+- `auto_start`: when false, the plugin never starts DPview automatically
+- `auto_open_browser`: when true, open the browser once after the plugin starts
+  a new DPview process
+- `notify`: enable or disable plugin notifications
+- `open_cmd`: optional Lua function that receives the DPview URL
+
+Sidebar and theme values are passed to DPview at startup with the matching CLI
+flags.
+
+==============================================================================
+4. Commands                                                  *dpview-commands*
+
+- `:DPviewStart` start DPview and sync the current supported buffer
+- `:DPviewStop` stop the DPview process started by the plugin
+- `:DPviewOpen` open the current DPview URL in the browser
+- `:DPviewSync` manually sync the current supported buffer
+- `:DPviewStatus` show plugin status
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
