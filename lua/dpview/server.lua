@@ -191,6 +191,9 @@ function M.start(state, callback)
     "--preview-theme",
     state.config.preview_theme,
     "--typst-preview-theme=" .. tostring(state.config.typst_preview_theme),
+    "--markdown-frontmatter-visible=" .. tostring(state.config.markdown_frontmatter_visible),
+    "--markdown-frontmatter-expanded=" .. tostring(state.config.markdown_frontmatter_expanded),
+    "--markdown-frontmatter-title=" .. tostring(state.config.markdown_frontmatter_title),
   })
 
   state.server.starting = true

@@ -5,7 +5,7 @@ DPview is a local Go web app for browsing and previewing Markdown and Typst file
 ## Features
 
 - Single Go binary
-- Markdown rendering with `goldmark`, plus HTML sanitization before browser display
+- Markdown rendering with `goldmark`, YAML front matter support, and HTML sanitization before browser display
 - Typst rendering to themed SVG pages through the `typst` CLI
 - Live updates via SSE when the current file changes or rerenders
 

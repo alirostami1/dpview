@@ -42,6 +42,9 @@ Install this repository as a Neovim plugin with your plugin manager, then call
       theme = "dark",
       preview_theme = "github",
       typst_preview_theme = true,
+      markdown_frontmatter_visible = true,
+      markdown_frontmatter_expanded = true,
+      markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
       notify = true,
@@ -61,6 +64,11 @@ Options:
   `notion`, or `paper`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly
   without injecting preview theme tokens
+- `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown
+  previews
+- `markdown_frontmatter_expanded`: start Markdown front matter panels expanded
+- `markdown_frontmatter_title`: use front matter `title` as an H1 when the
+  document has no H1
 - `auto_start`: when false, the plugin never starts DPview automatically
 - `auto_open_browser`: when true, open the browser once after the plugin starts
   a new DPview process
@@ -68,7 +76,9 @@ Options:
 - `open_cmd`: optional Lua function that receives the DPview URL
 
 Sidebar and theme values are passed to DPview at startup with the matching CLI
-flags, including `--typst-preview-theme`.
+flags, including `--typst-preview-theme`,
+`--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
+`--markdown-frontmatter-title`.
 
 ==============================================================================
 4. Commands                                                  *dpview-commands*

@@ -8,18 +8,21 @@ import (
 )
 
 type Config struct {
-	Root              string
-	Bind              string
-	Port              int
-	SidebarClosed     bool
-	TypstPreviewTheme bool
-	Theme             string
-	PreviewTheme      string
-	TypstBinary       string
-	LogLevel          string
-	OpenBrowser       bool
-	MaxFileSize       int64
-	RenderTimeout     time.Duration
+	Root                        string
+	Bind                        string
+	Port                        int
+	SidebarClosed               bool
+	TypstPreviewTheme           bool
+	MarkdownFrontMatterVisible  bool
+	MarkdownFrontMatterExpanded bool
+	MarkdownFrontMatterTitle    bool
+	Theme                       string
+	PreviewTheme                string
+	TypstBinary                 string
+	LogLevel                    string
+	OpenBrowser                 bool
+	MaxFileSize                 int64
+	RenderTimeout               time.Duration
 }
 
 func Parse() (Config, error) {
@@ -29,6 +32,9 @@ func Parse() (Config, error) {
 	flag.IntVar(&cfg.Port, "port", 8090, "port to listen on")
 	flag.BoolVar(&cfg.SidebarClosed, "sidebar-closed", false, "start with the sidebar collapsed")
 	flag.BoolVar(&cfg.TypstPreviewTheme, "typst-preview-theme", true, "apply DPview preview theming to Typst documents")
+	flag.BoolVar(&cfg.MarkdownFrontMatterVisible, "markdown-frontmatter-visible", true, "show parsed Markdown front matter above the preview")
+	flag.BoolVar(&cfg.MarkdownFrontMatterExpanded, "markdown-frontmatter-expanded", true, "start Markdown front matter panels expanded")
+	flag.BoolVar(&cfg.MarkdownFrontMatterTitle, "markdown-frontmatter-title", true, "use Markdown front matter title as an H1 when the document has no H1")
 	flag.StringVar(&cfg.Theme, "theme", "light", "initial app theme: light or dark")
 	flag.StringVar(&cfg.PreviewTheme, "preview-theme", "default", "initial preview theme id")
 	flag.StringVar(&cfg.TypstBinary, "typst-binary", "", "path to Typst executable to use instead of PATH lookup")

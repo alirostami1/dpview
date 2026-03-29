@@ -19,6 +19,9 @@ const state = {
     auto_refresh_paused: false,
     sidebar_collapsed: false,
     typst_preview_theme: true,
+    markdown_frontmatter_visible: true,
+    markdown_frontmatter_expanded: true,
+    markdown_frontmatter_title: true,
     theme: "light",
     preview_theme: "default",
   },
@@ -29,6 +32,7 @@ const state = {
   theme: localStorage.getItem(STORAGE.theme) || "system",
   previewTheme: localStorage.getItem(STORAGE.previewTheme) || "default",
   sidebarCollapsed: false,
+  frontMatterExpanded: null,
   localSelectionInFlight: "",
   statusMessage: "",
 };
@@ -45,6 +49,9 @@ const pauseRefreshInput = document.getElementById("pause-refresh");
 const themeSelect = document.getElementById("theme");
 const previewThemeSelect = document.getElementById("preview-theme");
 const typstPreviewThemeInput = document.getElementById("typst-preview-theme");
+const markdownFrontMatterVisibleInput = document.getElementById("markdown-frontmatter-visible");
+const markdownFrontMatterExpandedInput = document.getElementById("markdown-frontmatter-expanded");
+const markdownFrontMatterTitleInput = document.getElementById("markdown-frontmatter-title");
 const openSettingsButton = document.getElementById("open-settings");
 const closeSettingsButton = document.getElementById("close-settings");
 const toggleSidebarButton = document.getElementById("toggle-sidebar");
@@ -104,6 +111,44 @@ typstPreviewThemeInput.addEventListener("change", async () => {
   if (!result.ok) {
     state.settings.typst_preview_theme = previous;
     typstPreviewThemeInput.checked = previous;
+    return;
+  }
+  setStatus("Settings updated.");
+});
+
+markdownFrontMatterVisibleInput.addEventListener("change", async () => {
+  const previous = state.settings.markdown_frontmatter_visible;
+  state.settings.markdown_frontmatter_visible = markdownFrontMatterVisibleInput.checked;
+  const result = await syncSettings();
+  if (!result.ok) {
+    state.settings.markdown_frontmatter_visible = previous;
+    markdownFrontMatterVisibleInput.checked = previous;
+    return;
+  }
+  renderPreview();
+  setStatus("Settings updated.");
+});
+
+markdownFrontMatterExpandedInput.addEventListener("change", async () => {
+  const previous = state.settings.markdown_frontmatter_expanded;
+  state.settings.markdown_frontmatter_expanded = markdownFrontMatterExpandedInput.checked;
+  const result = await syncSettings();
+  if (!result.ok) {
+    state.settings.markdown_frontmatter_expanded = previous;
+    markdownFrontMatterExpandedInput.checked = previous;
+    return;
+  }
+  renderPreview();
+  setStatus("Settings updated.");
+});
+
+markdownFrontMatterTitleInput.addEventListener("change", async () => {
+  const previous = state.settings.markdown_frontmatter_title;
+  state.settings.markdown_frontmatter_title = markdownFrontMatterTitleInput.checked;
+  const result = await syncSettings({ rerenderMarkdown: true });
+  if (!result.ok) {
+    state.settings.markdown_frontmatter_title = previous;
+    markdownFrontMatterTitleInput.checked = previous;
     return;
   }
   setStatus("Settings updated.");
@@ -272,6 +317,7 @@ function renderTreeNodes(nodes, container, depth) {
 }
 
 function renderPreview() {
+  rememberFrontMatterState();
   const current = state.current;
   const file = current?.file || null;
   const preview = current?.preview || {};
@@ -301,12 +347,61 @@ function renderPreview() {
 
   if (preview.html) {
     previewEl.className = "preview";
-    previewEl.innerHTML = `<div class="${previewWrapperClass}">${preview.html}</div>`;
+    const frontMatterHTML =
+      file?.kind === "markdown" && state.settings.markdown_frontmatter_visible
+        ? renderFrontMatter(preview.frontmatter)
+        : "";
+    previewEl.innerHTML = `<div class="${previewWrapperClass}">${frontMatterHTML}${preview.html}</div>`;
+    bindFrontMatterState();
     return;
   }
 
   previewEl.className = "preview empty";
   previewEl.textContent = file ? "No preview available." : "No file selected.";
+}
+
+function renderFrontMatter(frontMatter) {
+  if (!frontMatter?.entries?.length) {
+    return "";
+  }
+  const open = (state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded) ? " open" : "";
+  const rows = frontMatter.entries.map((entry) => `
+    <tr>
+      <th>${escapeHTML(entry.key)}</th>
+      <td><code>${escapeHTML(entry.value)}</code></td>
+    </tr>
+  `).join("");
+  return `
+    <details class="frontmatter-panel"${open}>
+      <summary>
+        Front matter
+        <span class="frontmatter-meta">${escapeHTML(frontMatter.format || "yaml")}</span>
+      </summary>
+      <div class="frontmatter-table-wrap">
+        <table class="frontmatter-table">
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>
+  `;
+}
+
+function rememberFrontMatterState() {
+  const panel = previewEl.querySelector(".frontmatter-panel");
+  if (panel) {
+    state.frontMatterExpanded = panel.open;
+  }
+}
+
+function bindFrontMatterState() {
+  const panel = previewEl.querySelector(".frontmatter-panel");
+  if (!panel) {
+    return;
+  }
+  state.frontMatterExpanded = panel.open;
+  panel.addEventListener("toggle", () => {
+    state.frontMatterExpanded = panel.open;
+  });
 }
 
 function renderHealth() {
@@ -340,8 +435,12 @@ function applyFiles(data) {
 }
 
 function applyCurrent(data) {
+  const previousPath = state.current?.file?.path || "";
   state.current = data;
   const path = data.file?.path || "";
+  if (path !== previousPath) {
+    state.frontMatterExpanded = null;
+  }
   localStorage.setItem(STORAGE.currentPath, path);
   syncQueryPath(path);
   renderTree();
@@ -362,6 +461,9 @@ function applySettings(data) {
     auto_refresh_paused: !!settings.auto_refresh_paused,
     sidebar_collapsed: !!settings.sidebar_collapsed,
     typst_preview_theme: settings.typst_preview_theme !== false,
+    markdown_frontmatter_visible: settings.markdown_frontmatter_visible !== false,
+    markdown_frontmatter_expanded: settings.markdown_frontmatter_expanded !== false,
+    markdown_frontmatter_title: settings.markdown_frontmatter_title !== false,
     theme: settings.theme || "light",
     preview_theme: settings.preview_theme || "default",
   };
@@ -376,6 +478,12 @@ function applySettings(data) {
   renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
   typstPreviewThemeInput.checked = !!state.settings.typst_preview_theme;
+  markdownFrontMatterVisibleInput.checked = !!state.settings.markdown_frontmatter_visible;
+  markdownFrontMatterExpandedInput.checked = !!state.settings.markdown_frontmatter_expanded;
+  markdownFrontMatterTitleInput.checked = !!state.settings.markdown_frontmatter_title;
+  if (state.current?.file) {
+    renderPreview();
+  }
 }
 
 function currentSettingsPayload() {
@@ -383,6 +491,9 @@ function currentSettingsPayload() {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
     sidebar_collapsed: !!state.sidebarCollapsed,
     typst_preview_theme: !!state.settings.typst_preview_theme,
+    markdown_frontmatter_visible: !!state.settings.markdown_frontmatter_visible,
+    markdown_frontmatter_expanded: !!state.settings.markdown_frontmatter_expanded,
+    markdown_frontmatter_title: !!state.settings.markdown_frontmatter_title,
     theme: resolveThemeMode(state.theme),
     preview_theme: state.previewTheme,
   };
@@ -410,6 +521,9 @@ async function syncSettings(options = {}) {
   }
   applySettings(result.data);
   if (options.rerenderTypst && state.current?.file?.kind === "typst") {
+    return refreshCurrentPreview();
+  }
+  if (options.rerenderMarkdown && state.current?.file?.kind === "markdown") {
     return refreshCurrentPreview();
   }
   return result;

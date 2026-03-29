@@ -65,7 +65,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		refreshErr:    api.NewError("no_current_file", "no current file selected", ""),
 		refreshStatus: http.StatusBadRequest,
 		clearCurrent:  api.CurrentData{Preview: api.Preview{Status: api.RenderStatusError, Error: api.NewError("no_current_file", "Current file cleared", "")}},
-		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, TypstPreviewTheme: false, Theme: "dark", PreviewTheme: "github"}},
+		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
 	})
@@ -99,9 +99,9 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("DELETE /api/current status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"typst_preview_theme":false,"theme":"dark","preview_theme":"github"}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"preview_theme":"github"`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
 	}
 }

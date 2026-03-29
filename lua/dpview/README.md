@@ -25,6 +25,9 @@ Theme settings are passed to DPview as startup flags.
       theme = "dark",
       preview_theme = "github",
       typst_preview_theme = false,
+      markdown_frontmatter_visible = true,
+      markdown_frontmatter_expanded = true,
+      markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
     })
@@ -43,6 +46,9 @@ use({
       theme = "dark",
       preview_theme = "github",
       typst_preview_theme = false,
+      markdown_frontmatter_visible = true,
+      markdown_frontmatter_expanded = true,
+      markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
     })
@@ -62,6 +68,9 @@ require("dpview").setup({
   theme = "dark",
   preview_theme = "github",
   typst_preview_theme = false,
+  markdown_frontmatter_visible = true,
+  markdown_frontmatter_expanded = true,
+  markdown_frontmatter_title = true,
   auto_start = true,
   auto_open_browser = false,
 })
@@ -79,6 +88,9 @@ require("dpview").setup({
   theme = "dark",
   preview_theme = "github",
   typst_preview_theme = true,
+  markdown_frontmatter_visible = true,
+  markdown_frontmatter_expanded = true,
+  markdown_frontmatter_title = true,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -95,6 +107,9 @@ Options:
 - `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current `background`
 - `preview_theme`: DPview preview theme id such as `default`, `github`, `notion`, or `paper`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly without injecting preview theme tokens
+- `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown previews
+- `markdown_frontmatter_expanded`: start Markdown front matter panels expanded
+- `markdown_frontmatter_title`: use front matter `title` as an H1 when the document has no H1
 - `auto_start`: when false, the plugin never starts DPview automatically
 - `auto_open_browser`: when true, open the browser once after the plugin starts DPview
 - `notify`: enable or disable plugin notifications
@@ -115,6 +130,9 @@ Options:
 - Switching to unsupported buffers leaves the last DPview preview visible.
 - Theme can be controlled from Neovim config through `theme` and `preview_theme`.
 - Typst preview theming can be disabled from Neovim config through `typst_preview_theme`.
+- Markdown front matter behavior can be controlled from Neovim config through `markdown_frontmatter_visible`, `markdown_frontmatter_expanded`, and `markdown_frontmatter_title`.
 - Sidebar state can be controlled from Neovim config through `sidebar_collapsed`.
 - Sidebar and theme values are passed to DPview at startup with `--sidebar-closed`,
-  `--theme`, `--preview-theme`, and `--typst-preview-theme`.
+  `--theme`, `--preview-theme`, `--typst-preview-theme`,
+  `--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
+  `--markdown-frontmatter-title`.

@@ -12,6 +12,9 @@ local defaults = {
   theme = nil,
   preview_theme = "default",
   typst_preview_theme = true,
+  markdown_frontmatter_visible = true,
+  markdown_frontmatter_expanded = true,
+  markdown_frontmatter_title = true,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -149,6 +152,9 @@ function M.status()
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
     ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
+    ("markdown_frontmatter_visible: %s"):format(state.config.markdown_frontmatter_visible and "true" or "false"),
+    ("markdown_frontmatter_expanded: %s"):format(state.config.markdown_frontmatter_expanded and "true" or "false"),
+    ("markdown_frontmatter_title: %s"):format(state.config.markdown_frontmatter_title and "true" or "false"),
     ("launch: %s"):format(state.server.launch_label or "not started"),
   }
   if state.server.last_error then

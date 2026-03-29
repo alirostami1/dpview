@@ -55,6 +55,90 @@ func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownParsesFrontMatterAndInjectsTitle(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "frontmatter.md")
+	content := strings.Join([]string{
+		"---",
+		"title: Frontmatter Title",
+		"tags:",
+		"  - docs",
+		"  - markdown",
+		"author:",
+		"  name: Aros",
+		"---",
+		"",
+		"Body paragraph.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "frontmatter.md", Kind: files.KindMarkdown}, path, api.Settings{
+		MarkdownFrontMatterTitle: true,
+	})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if strings.Contains(preview.HTML, "title: Frontmatter Title") {
+		t.Fatalf("Render() HTML should not include raw front matter: %q", preview.HTML)
+	}
+	if !strings.Contains(preview.HTML, "<h1>Frontmatter Title</h1>") {
+		t.Fatalf("Render() HTML missing injected title: %q", preview.HTML)
+	}
+	if preview.FrontMatter == nil || preview.FrontMatter.Format != "yaml" || !preview.FrontMatter.TitleUsed {
+		t.Fatalf("Render() front matter = %+v", preview.FrontMatter)
+	}
+	if len(preview.FrontMatter.Entries) != 3 {
+		t.Fatalf("Render() front matter entries = %+v", preview.FrontMatter.Entries)
+	}
+	if preview.FrontMatter.Entries[1].Value != "[\"docs\",\"markdown\"]" {
+		t.Fatalf("Render() tag entry = %+v", preview.FrontMatter.Entries[1])
+	}
+}
+
+func TestRenderMarkdownFrontMatterTitleDoesNotOverrideExistingH1(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "frontmatter-h1.md")
+	content := strings.Join([]string{
+		"---",
+		"title: Frontmatter Title",
+		"---",
+		"",
+		"# Existing Title",
+		"",
+		"Body paragraph.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "frontmatter-h1.md", Kind: files.KindMarkdown}, path, api.Settings{
+		MarkdownFrontMatterTitle: true,
+	})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if strings.Count(preview.HTML, "<h1>") != 1 || !strings.Contains(preview.HTML, "<h1>Existing Title</h1>") {
+		t.Fatalf("Render() HTML = %q", preview.HTML)
+	}
+	if preview.FrontMatter == nil || preview.FrontMatter.TitleUsed {
+		t.Fatalf("Render() front matter = %+v", preview.FrontMatter)
+	}
+}
+
 func TestRenderMarkdownSanitizesUnsafeLinks(t *testing.T) {
 	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
 	if err != nil {

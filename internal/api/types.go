@@ -38,11 +38,24 @@ const (
 
 type Preview struct {
 	HTML             string       `json:"html,omitempty"`
+	FrontMatter      *FrontMatter `json:"frontmatter,omitempty"`
 	UpdatedAt        time.Time    `json:"updated_at,omitempty"`
 	RenderDurationMS int64        `json:"render_duration_ms,omitempty"`
 	CacheHit         bool         `json:"cache_hit"`
 	Status           RenderStatus `json:"status"`
 	Error            *Error       `json:"error,omitempty"`
+}
+
+type FrontMatter struct {
+	Format    string             `json:"format"`
+	Title     string             `json:"title,omitempty"`
+	TitleUsed bool               `json:"title_used"`
+	Entries   []FrontMatterEntry `json:"entries"`
+}
+
+type FrontMatterEntry struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type CurrentData struct {
@@ -62,11 +75,14 @@ type FilesData struct {
 }
 
 type Settings struct {
-	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
-	SidebarCollapsed  bool   `json:"sidebar_collapsed"`
-	TypstPreviewTheme bool   `json:"typst_preview_theme"`
-	Theme             string `json:"theme"`
-	PreviewTheme      string `json:"preview_theme"`
+	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
+	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
+	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
+	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`
+	MarkdownFrontMatterTitle    bool   `json:"markdown_frontmatter_title"`
+	Theme                       string `json:"theme"`
+	PreviewTheme                string `json:"preview_theme"`
 }
 
 type SettingsData struct {

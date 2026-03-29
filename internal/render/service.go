@@ -196,6 +196,7 @@ func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings) s
 		info.ModTime.UTC().Format(time.RFC3339Nano),
 		shortHash(source),
 		fmt.Sprintf("%t", settings.TypstPreviewTheme),
+		fmt.Sprintf("%t", settings.MarkdownFrontMatterTitle),
 		settings.Theme,
 		settings.PreviewTheme,
 	}, ":")

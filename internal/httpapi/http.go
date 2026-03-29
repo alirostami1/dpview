@@ -33,11 +33,14 @@ type CurrentRequest struct {
 }
 
 type SettingsRequest struct {
-	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
-	SidebarCollapsed  bool   `json:"sidebar_collapsed"`
-	TypstPreviewTheme bool   `json:"typst_preview_theme"`
-	Theme             string `json:"theme"`
-	PreviewTheme      string `json:"preview_theme"`
+	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
+	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
+	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
+	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
+	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`
+	MarkdownFrontMatterTitle    bool   `json:"markdown_frontmatter_title"`
+	Theme                       string `json:"theme"`
+	PreviewTheme                string `json:"preview_theme"`
 }
 
 func New(app Application, static fs.FS) (*Server, error) {
@@ -128,11 +131,14 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
-		AutoRefreshPaused: req.AutoRefreshPaused,
-		SidebarCollapsed:  req.SidebarCollapsed,
-		TypstPreviewTheme: req.TypstPreviewTheme,
-		Theme:             req.Theme,
-		PreviewTheme:      req.PreviewTheme,
+		AutoRefreshPaused:           req.AutoRefreshPaused,
+		SidebarCollapsed:            req.SidebarCollapsed,
+		TypstPreviewTheme:           req.TypstPreviewTheme,
+		MarkdownFrontMatterVisible:  req.MarkdownFrontMatterVisible,
+		MarkdownFrontMatterExpanded: req.MarkdownFrontMatterExpanded,
+		MarkdownFrontMatterTitle:    req.MarkdownFrontMatterTitle,
+		Theme:                       req.Theme,
+		PreviewTheme:                req.PreviewTheme,
 	})))
 }
 

@@ -1,3 +1,13 @@
+---
+title: Theme Comparison
+author:
+  name: Aros
+tags:
+  - demo
+  - markdown
+published: true
+---
+
 # Theme Comparison
 
 This Markdown sample exists to compare the selected preview theme with the Typst sample next to it.
