@@ -1,19 +1,16 @@
-GOCACHE ?= /tmp/dpview-gocache
-GOMODCACHE ?= /tmp/dpview-gomodcache
-GOPATH ?= /tmp/dpview-gopath
-
-GO_ENV = GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) GOPATH=$(GOPATH)
-
-.PHONY: build test check run
+.PHONY: build test check run dev
 
 build:
-	$(GO_ENV) go build -o dpview ./app/cmd
+	 go build -o build/dpview ./app/cmd
 
 test:
-	$(GO_ENV) go test ./...
+	 go test ./...
 
 check:
-	$(GO_ENV) go build ./...
+	 go build ./...
 
 run:
-	$(GO_ENV) go run ./app/cmd --root .
+	 go run ./app/cmd --root .
+
+dev:
+	 go tool air -c .air.toml

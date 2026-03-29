@@ -1,73 +1,67 @@
 const STORAGE = {
   expanded: "dpview.expanded",
   currentPath: "dpview.currentPath",
-  showSource: "dpview.showSource",
-  sidebarWidth: "dpview.sidebarWidth",
   search: "dpview.search",
+  page: "dpview.page",
+  theme: "dpview.theme",
+  previewTheme: "dpview.previewTheme",
   sidebarCollapsed: "dpview.sidebarCollapsed",
 };
+
+const systemThemeMedia =
+  window.matchMedia?.("(prefers-color-scheme: dark)") || null;
 
 const state = {
   files: [],
   tree: [],
-  recent: [],
   current: null,
   settings: { auto_refresh_paused: false },
   health: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
-  showSource: localStorage.getItem(STORAGE.showSource) === "true",
   search: localStorage.getItem(STORAGE.search) || "",
-  sidebarWidth: Number(localStorage.getItem(STORAGE.sidebarWidth) || 320),
+  page: localStorage.getItem(STORAGE.page) || "file",
+  theme: localStorage.getItem(STORAGE.theme) || "system",
+  previewTheme: localStorage.getItem(STORAGE.previewTheme) || "default",
   sidebarCollapsed: localStorage.getItem(STORAGE.sidebarCollapsed) === "true",
   localSelectionInFlight: "",
+  statusMessage: "",
 };
 
-const appEl = document.getElementById("app");
+const appEl = document.querySelector(".app");
 const sidebarEl = document.getElementById("sidebar");
 const treeEl = document.getElementById("tree");
-const recentEl = document.getElementById("recent");
 const previewEl = document.getElementById("preview");
-const sourcePaneEl = document.getElementById("source-pane");
-const sourceEl = document.getElementById("source");
-const currentPathEl = document.getElementById("current-path");
-const currentMetaEl = document.getElementById("current-meta");
-const previewStateEl = document.getElementById("preview-state");
+const markdownThemeCSS = document.getElementById("markdown-theme-css");
 const statusEl = document.getElementById("status");
 const healthEl = document.getElementById("health");
-const refreshButton = document.getElementById("refresh");
-const railRefreshButton = document.getElementById("rail-refresh");
-const clearButton = document.getElementById("clear-current");
 const searchInput = document.getElementById("search");
 const pauseRefreshInput = document.getElementById("pause-refresh");
-const showSourceInput = document.getElementById("show-source");
-const railSourceButton = document.getElementById("rail-source");
-const dividerEl = document.getElementById("divider");
-const panesEl = document.getElementById("panes");
-const sidebarToggleButton = document.getElementById("sidebar-toggle");
-const sidebarOpenButton = document.getElementById("sidebar-open");
-const railCurrentEl = document.getElementById("rail-current");
+const themeSelect = document.getElementById("theme");
+const previewThemeSelect = document.getElementById("preview-theme");
+const openSettingsButton = document.getElementById("open-settings");
+const closeSettingsButton = document.getElementById("close-settings");
+const toggleSidebarButton = document.getElementById("toggle-sidebar");
+const showSidebarButton = document.getElementById("show-sidebar");
+const fileViewEl = document.getElementById("file-view");
+const settingsViewEl = document.getElementById("settings-view");
 
-document.documentElement.style.setProperty("--sidebar-width", `${state.sidebarWidth}px`);
 searchInput.value = state.search;
-showSourceInput.checked = state.showSource;
-
-refreshButton.addEventListener("click", refreshCurrent);
-railRefreshButton.addEventListener("click", refreshCurrent);
-
-clearButton.addEventListener("click", async () => {
-  const result = await apiFetch("/api/current", { method: "DELETE" });
-  if (!result.ok) {
-    setStatus(result.error.message);
-    return;
-  }
-  applyCurrent(result.data);
-});
+themeSelect.value = state.theme;
+previewThemeSelect.value = state.previewTheme;
+applyTheme(state.theme);
+applyMarkdownTheme(state.previewTheme);
+renderSidebar();
 
 searchInput.addEventListener("input", () => {
   state.search = searchInput.value.trim().toLowerCase();
   localStorage.setItem(STORAGE.search, state.search);
   renderTree();
 });
+
+openSettingsButton.addEventListener("click", () => setPage("settings"));
+closeSettingsButton.addEventListener("click", () => setPage("file"));
+toggleSidebarButton.addEventListener("click", () => setSidebarCollapsed(true));
+showSidebarButton.addEventListener("click", () => setSidebarCollapsed(false));
 
 pauseRefreshInput.addEventListener("change", async () => {
   const result = await apiFetch("/api/settings", {
@@ -81,27 +75,62 @@ pauseRefreshInput.addEventListener("change", async () => {
     return;
   }
   applySettings(result.data);
+  setStatus("Settings updated.");
 });
 
-showSourceInput.addEventListener("change", () => {
-  state.showSource = showSourceInput.checked;
-  localStorage.setItem(STORAGE.showSource, String(state.showSource));
-  renderSourceVisibility();
+themeSelect.addEventListener("change", () => {
+  state.theme = themeSelect.value;
+  localStorage.setItem(STORAGE.theme, state.theme);
+  applyTheme(state.theme);
 });
 
-railSourceButton.addEventListener("click", () => {
-  state.showSource = !state.showSource;
-  localStorage.setItem(STORAGE.showSource, String(state.showSource));
-  renderSourceVisibility();
+previewThemeSelect.addEventListener("change", () => {
+  state.previewTheme = previewThemeSelect.value;
+  localStorage.setItem(STORAGE.previewTheme, state.previewTheme);
+  applyMarkdownTheme(state.previewTheme);
+  renderPreview();
 });
-
-sidebarToggleButton.addEventListener("click", () => setSidebarCollapsed(true));
-sidebarOpenButton.addEventListener("click", () => setSidebarCollapsed(false));
-
-setupResize();
 
 function setStatus(message) {
-  statusEl.textContent = message || "";
+  state.statusMessage = message || "";
+  renderStatus();
+}
+
+function renderStatus() {
+  statusEl.textContent = state.statusMessage;
+}
+
+function applyTheme(theme) {
+  const resolvedTheme =
+    theme === "system"
+      ? (systemThemeMedia?.matches ? "dark" : "light")
+      : theme;
+  document.body.dataset.theme = resolvedTheme;
+}
+
+function applyMarkdownTheme(theme) {
+  markdownThemeCSS.href = `/themes/markdown/${theme}.css`;
+}
+
+function setSidebarCollapsed(collapsed) {
+  state.sidebarCollapsed = collapsed;
+  localStorage.setItem(STORAGE.sidebarCollapsed, String(collapsed));
+  renderSidebar();
+}
+
+function renderSidebar() {
+  appEl.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  showSidebarButton.classList.toggle("hidden", !state.sidebarCollapsed);
+  toggleSidebarButton.textContent = state.sidebarCollapsed ? "Show" : "Hide";
+  toggleSidebarButton.setAttribute(
+    "aria-label",
+    state.sidebarCollapsed ? "Show sidebar" : "Hide sidebar",
+  );
+  if (!state.sidebarCollapsed) {
+    sidebarEl.removeAttribute("aria-hidden");
+  } else {
+    sidebarEl.setAttribute("aria-hidden", "true");
+  }
 }
 
 function escapeHTML(value) {
@@ -113,46 +142,31 @@ function escapeHTML(value) {
     .replaceAll("'", "&#39;");
 }
 
+if (systemThemeMedia) {
+  systemThemeMedia.addEventListener("change", () => {
+    if (state.theme === "system") {
+      applyTheme("system");
+    }
+  });
+}
+
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, options);
-  const payload = await response.json().catch(() => ({ ok: false, error: { message: "Invalid server response" } }));
+  const payload = await response.json().catch(() => ({
+    ok: false,
+    error: { message: "Invalid server response" },
+  }));
   if (!response.ok || !payload.ok) {
     return { ok: false, error: payload.error || { message: "Request failed" } };
   }
   return { ok: true, data: payload.data };
 }
 
-async function refreshCurrent() {
-  const result = await apiFetch("/api/refresh", { method: "POST" });
-  if (!result.ok) {
-    setStatus(result.error.message);
-  }
-}
-
-function setSidebarCollapsed(collapsed) {
-  state.sidebarCollapsed = collapsed;
-  localStorage.setItem(STORAGE.sidebarCollapsed, String(collapsed));
-  appEl.classList.toggle("is-collapsed", collapsed);
-}
-
-function renderRecent() {
-  recentEl.innerHTML = "";
-  if (!state.recent.length) {
-    recentEl.innerHTML = `<div class="status">No recent files yet.</div>`;
-    return;
-  }
-  for (const item of state.recent) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "recent-item";
-    if (state.current?.file?.path === item.path) {
-      button.classList.add("is-current");
-    }
-    button.textContent = item.path;
-    button.title = item.path;
-    button.addEventListener("click", () => setCurrent(item.path));
-    recentEl.appendChild(button);
-  }
+function setPage(page) {
+  state.page = page;
+  localStorage.setItem(STORAGE.page, page);
+  fileViewEl.classList.toggle("hidden", page !== "file");
+  settingsViewEl.classList.toggle("hidden", page !== "settings");
 }
 
 function filteredNodes(nodes) {
@@ -178,7 +192,7 @@ function renderTree() {
   treeEl.innerHTML = "";
   const nodes = filteredNodes(state.tree);
   if (!nodes.length) {
-    treeEl.innerHTML = `<div class="status">No matching previewable files.</div>`;
+    treeEl.textContent = "No matching files.";
     return;
   }
   renderTreeNodes(nodes, treeEl, 0);
@@ -188,25 +202,24 @@ function renderTreeNodes(nodes, container, depth) {
   for (const node of nodes) {
     const wrapper = document.createElement("div");
     wrapper.className = "tree-node";
+
     if (node.children?.length) {
       const open = state.expanded.has(node.path) || Boolean(state.search);
       const toggle = document.createElement("button");
       toggle.type = "button";
-      toggle.className = "tree-folder-toggle";
-      toggle.setAttribute("aria-expanded", String(open));
-      toggle.classList.toggle("is-folder-open", open);
-      toggle.style.paddingLeft = `${10 + depth * 16}px`;
-      toggle.innerHTML = `
-        <span class="tree-chevron" aria-hidden="true">›</span>
-        <span class="tree-label">${escapeHTML(node.name)}</span>
-      `;
+      toggle.className = "tree-button tree-folder";
+      toggle.style.paddingLeft = `${0.5 + depth}rem`;
+      toggle.textContent = `${open ? "▾" : "▸"} ${node.name}`;
       toggle.addEventListener("click", () => {
         if (state.expanded.has(node.path)) {
           state.expanded.delete(node.path);
         } else {
           state.expanded.add(node.path);
         }
-        localStorage.setItem(STORAGE.expanded, JSON.stringify([...state.expanded]));
+        localStorage.setItem(
+          STORAGE.expanded,
+          JSON.stringify([...state.expanded]),
+        );
         renderTree();
       });
       wrapper.appendChild(toggle);
@@ -220,95 +233,85 @@ function renderTreeNodes(nodes, container, depth) {
     } else {
       const row = document.createElement("button");
       row.type = "button";
-      row.className = "tree-row tree-file";
-      row.style.paddingLeft = `${10 + depth * 16}px`;
-      if (node.path === state.current?.file?.path) {
-        row.classList.add("is-current");
-      }
-      const icon = node.kind === "typst" ? "◇" : "·";
-      row.innerHTML = `
-        <span class="tree-icon" aria-hidden="true">${icon}</span>
-        <span class="tree-label">${escapeHTML(node.name)}</span>
-      `;
+      row.className = "tree-button";
+      row.style.paddingLeft = `${0.5 + depth}rem`;
+      row.textContent = node.name;
       row.title = node.path || node.name;
+      if (node.path === state.current?.file?.path) {
+        row.classList.add("selected");
+      }
       row.addEventListener("click", () => setCurrent(node.path));
       wrapper.appendChild(row);
     }
+
     container.appendChild(wrapper);
   }
-}
-
-function renderSourceVisibility() {
-  showSourceInput.checked = state.showSource;
-  if (state.showSource) {
-    sourcePaneEl.classList.remove("hidden");
-    panesEl.classList.add("with-source");
-  } else {
-    sourcePaneEl.classList.add("hidden");
-    panesEl.classList.remove("with-source");
-  }
-}
-
-function formatMeta(file, preview) {
-  if (!file) {
-    return "";
-  }
-  const parts = [];
-  parts.push(file.kind);
-  if (preview?.render_duration_ms) {
-    parts.push(`${preview.render_duration_ms} ms`);
-  }
-  if (preview?.cache_hit) {
-    parts.push("cache");
-  }
-  if (file.mtime) {
-    parts.push(new Date(file.mtime).toLocaleString());
-  }
-  return parts.join(" · ");
 }
 
 function renderPreview() {
   const current = state.current;
   const file = current?.file || null;
   const preview = current?.preview || {};
-  currentPathEl.textContent = file?.path || "No file selected";
-  currentMetaEl.textContent = formatMeta(file, preview);
-  previewStateEl.textContent = preview.status || "idle";
-  sourceEl.textContent = preview.source || "";
-  railCurrentEl.classList.toggle("has-current", Boolean(file));
-  railCurrentEl.title = file?.path || "No file selected";
+  const previewWrapperClass =
+    file?.kind === "markdown"
+      ? "preview-content markdown-preview"
+      : "preview-content";
 
   if (preview.status === "rendering") {
-    previewEl.className = "preview-shell preview-loading";
-    previewEl.textContent = `Rendering ${file?.path || "preview"}...`;
+    previewEl.className = "preview";
+    previewEl.textContent = `Rendering ${file?.path || "file"}...`;
     return;
   }
+
   if (preview.error) {
-    previewEl.className = "preview-shell";
+    previewEl.className = "preview";
     previewEl.innerHTML = `
-      <div class="preview-error">
+      <div class="${previewWrapperClass}">
         <strong>${escapeHTML(preview.error.message)}</strong>
         ${preview.error.detail ? `<pre>${escapeHTML(preview.error.detail)}</pre>` : ""}
       </div>
     `;
     return;
   }
+
   if (preview.html) {
-    previewEl.className = "preview-shell";
-    previewEl.innerHTML = preview.html;
+    previewEl.className = "preview";
+    previewEl.innerHTML = `<div class="${previewWrapperClass}">${preview.html}</div>`;
     return;
   }
-  previewEl.className = "preview-shell empty";
-  previewEl.textContent = "Select a Markdown or Typst file to preview it.";
+
+  previewEl.className = "preview empty";
+  previewEl.textContent = file ? "No preview available." : "No file selected.";
+}
+
+function renderHealth() {
+  const health = state.health;
+  if (!health) {
+    healthEl.innerHTML = "";
+    return;
+  }
+
+  const items = [];
+  items.push(`<div class="status-item">Status: ${escapeHTML(health.status || "unknown")}</div>`);
+  items.push(`<div class="status-item">Watcher: ${health.watcher?.enabled ? "enabled" : "disabled"}</div>`);
+
+  for (const renderer of health.renderers || []) {
+    const value = renderer.available ? "available" : "unavailable";
+    items.push(
+      `<div class="status-item">${escapeHTML(renderer.name || renderer.kind)}: ${value}</div>`,
+    );
+  }
+
+  healthEl.innerHTML = items.join("");
 }
 
 function applyFiles(data) {
   state.files = data.files || [];
   state.tree = data.tree || [];
-  state.recent = data.recent || [];
-  renderRecent();
   renderTree();
-  setStatus(`${state.files.length} file${state.files.length === 1 ? "" : "s"} indexed`);
+  setStatus(
+    `${state.files.length} file${state.files.length === 1 ? "" : "s"} indexed`,
+  );
 }
 
 function applyCurrent(data) {
@@ -316,13 +319,12 @@ function applyCurrent(data) {
   const path = data.file?.path || "";
   localStorage.setItem(STORAGE.currentPath, path);
   syncQueryPath(path);
-  renderRecent();
   renderTree();
   renderPreview();
   if (state.localSelectionInFlight && state.localSelectionInFlight !== path) {
     setStatus(`Switched externally to ${path || "no file"}.`);
-  } else if (!path) {
-    setStatus("");
+  } else if (!state.statusMessage || state.localSelectionInFlight) {
+    setStatus(path ? `Selected ${path}` : "");
   }
   state.localSelectionInFlight = "";
 }
@@ -334,12 +336,7 @@ function applySettings(data) {
 
 function applyHealth(data) {
   state.health = data;
-  const typst = (data.renderers || []).find((renderer) => renderer.kind === "typst");
-  if (typst?.available) {
-    healthEl.textContent = "Typst ready";
-    return;
-  }
-  healthEl.textContent = "Markdown only";
+  renderHealth();
 }
 
 async function setCurrent(path) {
@@ -355,6 +352,7 @@ async function setCurrent(path) {
     state.localSelectionInFlight = "";
     return;
   }
+  setPage("file");
   applyCurrent(result.data);
 }
 
@@ -366,27 +364,6 @@ function syncQueryPath(path) {
     url.searchParams.delete("path");
   }
   window.history.replaceState({}, "", url);
-}
-
-function setupResize() {
-  dividerEl.addEventListener("pointerdown", (event) => {
-    if (state.sidebarCollapsed) {
-      return;
-    }
-    event.preventDefault();
-    const onMove = (moveEvent) => {
-      const width = Math.max(260, Math.min(440, moveEvent.clientX));
-      state.sidebarWidth = width;
-      localStorage.setItem(STORAGE.sidebarWidth, String(width));
-      document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  });
 }
 
 async function loadInitialState() {
@@ -405,12 +382,12 @@ async function loadInitialState() {
   applyFiles(files.data);
   applyCurrent(current.data);
   applySettings(settings.data);
-  renderSourceVisibility();
-  setSidebarCollapsed(state.sidebarCollapsed);
+  setPage(state.page);
 
   const deeplinkPath = new URL(window.location.href).searchParams.get("path");
   const storedPath = localStorage.getItem(STORAGE.currentPath);
-  const preferredPath = deeplinkPath || (!current.data.current && storedPath ? storedPath : "");
+  const preferredPath =
+    deeplinkPath || (!current.data.current && storedPath ? storedPath : "");
   if (preferredPath && preferredPath !== current.data.file?.path) {
     await setCurrent(preferredPath);
   }
@@ -432,7 +409,7 @@ function connectEvents() {
   events.addEventListener("render_started", (event) => {
     state.current = parseEvent(event);
     renderPreview();
-    setStatus(`Rendering ${state.current?.file?.path || "preview"}...`);
+    setStatus(`Rendering ${state.current?.file?.path || "file"}...`);
   });
   events.addEventListener("render_failed", (event) => {
     applyCurrent(parseEvent(event));
@@ -449,4 +426,5 @@ loadInitialState()
   .then(connectEvents)
   .catch((error) => {
     setStatus(error.message || "Failed to load application state");
+    setPage("settings");
   });

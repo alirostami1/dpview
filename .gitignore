@@ -1,0 +1,20 @@
+# Go build and test artifacts
+/build/
+*.test
+*.out
+coverage.out
+
+# Local dev runner artifacts
+/tmp/
+build-errors.log
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

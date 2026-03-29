@@ -29,3 +29,7 @@ make build
 ```
 
 Open `http://127.0.0.1:8090`.
+
+## Markdown Theming
+
+Markdown theme files use a shared selector contract documented in [`docs/markdown-theming.md`](docs/markdown-theming.md).

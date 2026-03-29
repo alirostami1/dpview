@@ -56,8 +56,7 @@ func (r *markdownRenderer) Render(_ context.Context, req RenderRequest) api.Prev
 	}
 	safe := r.sanitize.SanitizeBytes(out.Bytes())
 	return api.Preview{
-		HTML:             `<article class="markdown-body">` + string(safe) + `</article>`,
-		Source:           string(req.Source),
+		HTML:             `<article class="markdown-theme">` + string(safe) + `</article>`,
 		UpdatedAt:        time.Now().UTC(),
 		RenderDurationMS: time.Since(req.Started).Milliseconds(),
 		Status:           api.RenderStatusReady,

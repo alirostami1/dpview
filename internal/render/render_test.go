@@ -47,7 +47,7 @@ func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
 
-	checks := []string{"<h1>Heading</h1>", "<ul>", "<table>", "<pre><code", "type=\"checkbox\"", "href=\"https://example.com\""}
+	checks := []string{"<article class=\"markdown-theme\">", "<h1>Heading</h1>", "<ul>", "<table>", "<pre><code", "type=\"checkbox\"", "href=\"https://example.com\""}
 	for _, check := range checks {
 		if !strings.Contains(preview.HTML, check) {
 			t.Fatalf("Render() HTML missing %q", check)

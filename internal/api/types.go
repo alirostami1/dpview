@@ -38,7 +38,6 @@ const (
 
 type Preview struct {
 	HTML             string       `json:"html,omitempty"`
-	Source           string       `json:"source,omitempty"`
 	UpdatedAt        time.Time    `json:"updated_at,omitempty"`
 	RenderDurationMS int64        `json:"render_duration_ms,omitempty"`
 	CacheHit         bool         `json:"cache_hit"`
@@ -55,17 +54,9 @@ type CurrentData struct {
 	Origin  string          `json:"origin,omitempty"`
 }
 
-type RecentFile struct {
-	Path       string     `json:"path"`
-	Name       string     `json:"name"`
-	Kind       files.Kind `json:"kind"`
-	AccessedAt time.Time  `json:"accessed_at"`
-}
-
 type FilesData struct {
 	Files   []files.FileInfo `json:"files"`
 	Tree    []files.TreeNode `json:"tree"`
-	Recent  []RecentFile     `json:"recent"`
 	Version int64            `json:"version"`
 	EventID int64            `json:"event_id"`
 }

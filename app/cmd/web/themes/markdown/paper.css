@@ -1,0 +1,90 @@
+.markdown-theme {
+  font: 17px/1.75 Georgia, "Times New Roman", serif;
+}
+
+body[data-theme="light"] .markdown-theme {
+  color: #202020;
+  background: #fffdf8;
+}
+
+body[data-theme="dark"] .markdown-theme {
+  color: #e7e0d3;
+  background: #16130f;
+}
+
+.markdown-theme h1,
+.markdown-theme h2,
+.markdown-theme h3,
+.markdown-theme h4,
+.markdown-theme h5,
+.markdown-theme h6 {
+  margin: 1.6em 0 0.55em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.markdown-theme p,
+.markdown-theme li {
+  max-width: 72ch;
+}
+
+.markdown-theme code {
+  font: 85% ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+body[data-theme="light"] .markdown-theme code {
+  background: rgba(125, 96, 55, 0.08);
+}
+
+body[data-theme="dark"] .markdown-theme code {
+  background: rgba(214, 190, 150, 0.12);
+}
+
+.markdown-theme pre {
+  padding: 1em;
+}
+
+body[data-theme="light"] .markdown-theme pre {
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+body[data-theme="dark"] .markdown-theme pre {
+  border: 1px solid #4b4338;
+  background: #201c17;
+}
+
+.markdown-theme blockquote {
+  margin: 0;
+  padding-left: 1.2em;
+  font-style: italic;
+}
+
+body[data-theme="light"] .markdown-theme blockquote {
+  border-left: 2px solid #bbb;
+}
+
+body[data-theme="dark"] .markdown-theme blockquote {
+  border-left: 2px solid #5a5044;
+}
+
+body[data-theme="light"] .markdown-theme a {
+  color: #7a3e1d;
+}
+
+body[data-theme="dark"] .markdown-theme a {
+  color: #e2a97f;
+}
+
+.markdown-theme hr {
+  border: 0;
+  border-top: 1px solid;
+}
+
+body[data-theme="light"] .markdown-theme hr {
+  border-top-color: #d6cfc3;
+}
+
+body[data-theme="dark"] .markdown-theme hr {
+  border-top-color: #4b4338;
+}

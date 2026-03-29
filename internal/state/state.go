@@ -1,7 +1,6 @@
 package state
 
 import (
-	"slices"
 	"sync"
 	"time"
 
@@ -23,7 +22,6 @@ type Store struct {
 	eventID  int64
 	files    []files.FileInfo
 	tree     []files.TreeNode
-	recent   []api.RecentFile
 	current  *files.FileInfo
 	preview  api.Preview
 	origin   string
@@ -69,7 +67,6 @@ func (s *Store) SetCurrent(info *files.FileInfo, preview api.Preview, origin str
 	if info != nil {
 		copyInfo := *info
 		s.current = &copyInfo
-		s.touchRecentLocked(copyInfo)
 	} else {
 		s.current = nil
 	}
@@ -102,9 +99,6 @@ func (s *Store) PublishRenderStarted(info *files.FileInfo) api.Event {
 	preview := api.Preview{
 		Status:    api.RenderStatusRendering,
 		UpdatedAt: time.Now().UTC(),
-	}
-	if s.current != nil {
-		preview.Source = s.preview.Source
 	}
 	payload := api.CurrentData{
 		File:    cloneFileInfo(info),
@@ -146,7 +140,6 @@ func (s *Store) filesDataLocked() api.FilesData {
 	return api.FilesData{
 		Files:   append([]files.FileInfo(nil), s.files...),
 		Tree:    append([]files.TreeNode(nil), s.tree...),
-		Recent:  append([]api.RecentFile(nil), s.recent...),
 		Version: s.version,
 		EventID: s.eventID,
 	}
@@ -186,36 +179,6 @@ func (s *Store) emitLocked(eventType string, data any) api.Event {
 		}
 	}
 	return event
-}
-
-func (s *Store) touchRecentLocked(info files.FileInfo) {
-	now := time.Now().UTC()
-	next := make([]api.RecentFile, 0, len(s.recent)+1)
-	next = append(next, api.RecentFile{
-		Path:       info.Path,
-		Name:       info.Name,
-		Kind:       info.Kind,
-		AccessedAt: now,
-	})
-	for _, item := range s.recent {
-		if item.Path == info.Path {
-			continue
-		}
-		next = append(next, item)
-	}
-	if len(next) > 10 {
-		next = next[:10]
-	}
-	slices.SortFunc(next, func(a, b api.RecentFile) int {
-		if a.AccessedAt.After(b.AccessedAt) {
-			return -1
-		}
-		if a.AccessedAt.Before(b.AccessedAt) {
-			return 1
-		}
-		return 0
-	})
-	s.recent = next
 }
 
 func cloneFileInfo(info *files.FileInfo) *files.FileInfo {

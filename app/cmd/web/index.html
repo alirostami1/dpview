@@ -5,86 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DPview</title>
     <link rel="stylesheet" href="/styles.css">
+    <link id="markdown-theme-css" rel="stylesheet" href="/themes/markdown/default.css">
   </head>
   <body>
-    <div id="app" class="app">
+    <div class="app">
       <aside id="sidebar" class="sidebar">
-        <div class="sidebar-top">
-          <div class="brand-row">
-            <button id="sidebar-toggle" class="icon-button" type="button" aria-label="Collapse explorer" title="Collapse explorer">
-              <span aria-hidden="true">◧</span>
-            </button>
-            <div class="brand-copy">
-              <div class="brand-title">DPview</div>
-              <div id="health" class="brand-meta">Local preview</div>
-            </div>
-          </div>
-
-          <div class="sidebar-tools">
-            <input id="search" class="search-input" type="search" placeholder="Filter files">
-            <div class="tool-row">
-              <label class="quiet-toggle">
-                <input id="pause-refresh" type="checkbox">
-                <span>Pause refresh</span>
-              </label>
-              <button id="refresh" class="quiet-button" type="button">Refresh</button>
-            </div>
-          </div>
+        <div class="sidebar-header">
+          <button id="toggle-sidebar" type="button" aria-label="Toggle sidebar">Hide</button>
+          <input id="search" type="search" placeholder="Search files">
+          <button id="open-settings" type="button">Settings</button>
         </div>
-
-        <div id="status" class="status" aria-live="polite"></div>
-
-        <section class="sidebar-section">
-          <div class="section-label">Recent</div>
-          <div id="recent" class="recent-list"></div>
-        </section>
-
-        <section class="sidebar-section explorer-section">
-          <div class="section-label">Explorer</div>
-          <nav id="tree" class="tree" aria-label="Previewable files"></nav>
-        </section>
+        <nav id="tree" class="tree" aria-label="Files"></nav>
       </aside>
 
-      <aside id="sidebar-rail" class="sidebar-rail" aria-label="Collapsed explorer">
-        <button id="sidebar-open" class="icon-button rail-button" type="button" aria-label="Open explorer" title="Open explorer">
-          <span aria-hidden="true">☰</span>
-        </button>
-        <button id="rail-refresh" class="icon-button rail-button" type="button" aria-label="Refresh preview" title="Refresh preview">
-          <span aria-hidden="true">↻</span>
-        </button>
-        <button id="rail-source" class="icon-button rail-button" type="button" aria-label="Toggle source view" title="Toggle source view">
-          <span aria-hidden="true">≡</span>
-        </button>
-        <div id="rail-current" class="rail-current" title="Current file"></div>
-      </aside>
+      <main class="main">
+        <button id="show-sidebar" class="show-sidebar hidden" type="button">Files</button>
 
-      <div id="divider" class="divider" aria-hidden="true"></div>
+        <section id="file-view" class="panel">
+          <div id="preview" class="preview empty">No file selected.</div>
+        </section>
 
-      <main class="workspace">
-        <header class="workspace-header">
-          <div class="workspace-main">
-            <div id="current-path" class="current-path">No file selected</div>
-            <div id="current-meta" class="current-meta"></div>
+        <section id="settings-view" class="panel hidden">
+          <div class="settings-shell">
+            <div class="settings-header">
+              <h1>Settings</h1>
+              <button id="close-settings" type="button">Back</button>
+            </div>
+
+            <div class="settings-grid">
+              <section class="settings-block">
+                <h2>Status</h2>
+                <div id="status" class="status"></div>
+                <div id="health" class="status-list"></div>
+              </section>
+
+              <section class="settings-block">
+                <h2>Settings</h2>
+                <label class="setting-row">
+                  <span class="setting-label">Theme</span>
+                  <select id="theme">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+                <label class="setting-row">
+                  <span class="setting-label">Markdown theme</span>
+                  <select id="preview-theme">
+                    <option value="default">Default</option>
+                    <option value="github">GitHub Markdown</option>
+                    <option value="notion">Notion</option>
+                    <option value="paper">Paper</option>
+                  </select>
+                </label>
+                <label class="setting-row setting-row-checkbox">
+                  <span class="setting-label">Auto refresh</span>
+                  <span class="setting-control">
+                    <input id="pause-refresh" type="checkbox">
+                    <span>Pause auto refresh</span>
+                  </span>
+                </label>
+              </section>
+            </div>
           </div>
-          <div class="workspace-actions">
-            <label class="quiet-toggle source-toggle">
-              <input id="show-source" type="checkbox">
-              <span>Source</span>
-            </label>
-            <button id="clear-current" class="quiet-button quiet-danger" type="button">Clear</button>
-            <div id="preview-state" class="preview-state">Idle</div>
-          </div>
-        </header>
-
-        <div id="panes" class="panes">
-          <section id="preview" class="preview-shell empty">
-            Select a Markdown or Typst file to preview it.
-          </section>
-          <section id="source-pane" class="source-pane hidden">
-            <div class="source-header">Source</div>
-            <pre id="source" class="source"></pre>
-          </section>
-        </div>
+        </section>
       </main>
     </div>
     <script src="/app.js" defer></script>
