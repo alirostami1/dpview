@@ -1,4 +1,4 @@
-module codeberg.org/aros/dpview.git
+module codeberg.org/aros/dpview
 
 go 1.25.8
 
