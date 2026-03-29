@@ -110,6 +110,7 @@ func (s *Store) ClearCurrent(err *api.Error, origin string) api.CurrentData {
 func (s *Store) PublishRenderStarted(info *files.FileInfo) api.Event {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.eventID++
 	preview := api.Preview{
 		Status:    api.RenderStatusRendering,
 		UpdatedAt: time.Now().UTC(),
@@ -118,10 +119,23 @@ func (s *Store) PublishRenderStarted(info *files.FileInfo) api.Event {
 		File:    cloneFileInfo(info),
 		Preview: preview,
 		Version: s.version,
+		EventID: s.eventID,
 		Current: info != nil,
 		Origin:  s.origin,
 	}
-	return s.emitLocked(api.EventRenderStarted, payload)
+	event := api.Event{
+		Type:    api.EventRenderStarted,
+		EventID: s.eventID,
+		Version: s.version,
+		Data:    payload,
+	}
+	for ch := range s.subs {
+		select {
+		case ch <- event:
+		default:
+		}
+	}
+	return event
 }
 
 func (s *Store) UpdateSettings(settings api.Settings) api.SettingsData {
@@ -129,6 +143,16 @@ func (s *Store) UpdateSettings(settings api.Settings) api.SettingsData {
 	defer s.mu.Unlock()
 	s.version++
 	s.settings = settings
+	data := s.settingsDataLocked()
+	s.emitLocked(api.EventSettingsChanged, data)
+	return data
+}
+
+func (s *Store) PatchSettings(patch api.SettingsPatch) api.SettingsData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	applySettingsPatch(&s.settings, patch)
+	s.version++
 	data := s.settingsDataLocked()
 	s.emitLocked(api.EventSettingsChanged, data)
 	return data
@@ -236,4 +260,37 @@ func cloneFileInfo(info *files.FileInfo) *files.FileInfo {
 	}
 	copyInfo := *info
 	return &copyInfo
+}
+
+func applySettingsPatch(settings *api.Settings, patch api.SettingsPatch) {
+	if patch.AutoRefreshPaused != nil {
+		settings.AutoRefreshPaused = *patch.AutoRefreshPaused
+	}
+	if patch.SidebarCollapsed != nil {
+		settings.SidebarCollapsed = *patch.SidebarCollapsed
+	}
+	if patch.EditorFileSyncEnabled != nil {
+		settings.EditorFileSyncEnabled = *patch.EditorFileSyncEnabled
+	}
+	if patch.SeekEnabled != nil {
+		settings.SeekEnabled = *patch.SeekEnabled
+	}
+	if patch.TypstPreviewTheme != nil {
+		settings.TypstPreviewTheme = *patch.TypstPreviewTheme
+	}
+	if patch.MarkdownFrontMatterVisible != nil {
+		settings.MarkdownFrontMatterVisible = *patch.MarkdownFrontMatterVisible
+	}
+	if patch.MarkdownFrontMatterExpanded != nil {
+		settings.MarkdownFrontMatterExpanded = *patch.MarkdownFrontMatterExpanded
+	}
+	if patch.MarkdownFrontMatterTitle != nil {
+		settings.MarkdownFrontMatterTitle = *patch.MarkdownFrontMatterTitle
+	}
+	if patch.Theme != nil {
+		settings.Theme = *patch.Theme
+	}
+	if patch.PreviewTheme != nil {
+		settings.PreviewTheme = *patch.PreviewTheme
+	}
 }

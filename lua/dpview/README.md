@@ -22,6 +22,7 @@ Theme settings are passed to DPview as startup flags.
   config = function()
     require("dpview").setup({
       sidebar_collapsed = true,
+      editor_file_sync = true,
       theme = "dark",
       preview_theme = "github",
       cursor_seek = true,
@@ -44,6 +45,7 @@ use({
   config = function()
     require("dpview").setup({
       sidebar_collapsed = true,
+      editor_file_sync = true,
       theme = "dark",
       preview_theme = "github",
       cursor_seek = true,
@@ -87,6 +89,7 @@ require("dpview").setup({
   host = "127.0.0.1",
   port = nil,
   sidebar_collapsed = false,
+  editor_file_sync = true,
   theme = "dark",
   preview_theme = "github",
   cursor_seek = true,
@@ -108,6 +111,7 @@ Options:
 - `host`: bind address for the local DPview server
 - `port`: fixed port, or `nil` to let the plugin choose a high local port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed
+- `editor_file_sync`: allow Neovim to switch the DPview preview to the active supported buffer
 - `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current `background`
 - `preview_theme`: DPview preview theme id such as `default`, `github`, `notion`, or `paper`
 - `cursor_seek`: enable editor-to-preview seeking updates
@@ -131,6 +135,9 @@ Options:
 - `:DPviewSeekEnable`
 - `:DPviewSeekDisable`
 - `:DPviewSeekToggle`
+- `:DPviewFileSyncEnable`
+- `:DPviewFileSyncDisable`
+- `:DPviewFileSyncToggle`
 
 ## Notes
 
@@ -138,11 +145,12 @@ Options:
 - Supported files are `.md`, `.markdown`, `.typ`, and `.typst`.
 - Switching to unsupported buffers leaves the last DPview preview visible.
 - Theme can be controlled from Neovim config through `theme` and `preview_theme`.
+- File following can be controlled from Neovim config through `editor_file_sync` and at runtime through `:DPviewFileSyncEnable`, `:DPviewFileSyncDisable`, and `:DPviewFileSyncToggle`.
 - Seeking can be controlled from Neovim config through `cursor_seek` and at runtime through `:DPviewSeekEnable`, `:DPviewSeekDisable`, and `:DPviewSeekToggle`.
 - Typst preview theming can be disabled from Neovim config through `typst_preview_theme`.
 - Markdown front matter behavior can be controlled from Neovim config through `markdown_frontmatter_visible`, `markdown_frontmatter_expanded`, and `markdown_frontmatter_title`.
 - Sidebar state can be controlled from Neovim config through `sidebar_collapsed`.
-- Sidebar, seek, and theme values are passed to DPview at startup with `--sidebar-closed`,
-  `--seek-enabled`, `--theme`, `--preview-theme`, `--typst-preview-theme`,
+- Sidebar, sync, and theme values are passed to DPview at startup with `--sidebar-closed`,
+  `--editor-file-sync`, `--seek-enabled`, `--theme`, `--preview-theme`, `--typst-preview-theme`,
   `--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
   `--markdown-frontmatter-title`.

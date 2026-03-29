@@ -97,23 +97,31 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 		return errPreview(req.Started, "typst_unavailable", "Typst CLI is not available", r.status.Details["reason"])
 	}
 
-	fingerprint := shortHash(req.Source)
-	renderDir := filepath.Join(r.tempRoot, fingerprint)
-	if err := os.MkdirAll(renderDir, 0o755); err != nil {
+	renderDir, err := os.MkdirTemp(r.tempRoot, "render-*")
+	if err != nil {
 		return errPreview(req.Started, "internal_error", "Failed to create Typst render directory", err.Error())
 	}
+	defer os.RemoveAll(renderDir)
 
 	pattern := filepath.Join(renderDir, "page-{p}.svg")
 	compileSource := req.AbsPath
+	root := req.Root
+	if root == "" {
+		root = filepath.Dir(req.AbsPath)
+	}
 	if req.Settings.TypstPreviewTheme {
-		wrapperPath := filepath.Join(renderDir, "dpview-wrapper.typ")
+		wrapperDir, err := os.MkdirTemp(root, ".dpview-wrapper-*")
+		if err != nil {
+			return errPreview(req.Started, "internal_error", "Failed to create Typst wrapper directory", err.Error())
+		}
+		defer os.RemoveAll(wrapperDir)
+		wrapperPath := filepath.Join(wrapperDir, "dpview-wrapper.typ")
 		if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.AbsPath, req.Settings)), 0o644); err != nil {
 			return errPreview(req.Started, "internal_error", "Failed to prepare Typst theme wrapper", err.Error())
 		}
 		compileSource = wrapperPath
 	}
-	cleanupOldSVG(renderDir)
-	_, stderr, err := r.runner.Run(ctx, r.status.Details["path"], "compile", "--root", string(filepath.Separator), compileSource, pattern)
+	_, stderr, err := r.runner.Run(ctx, r.status.Details["path"], "compile", "--root", root, compileSource, pattern)
 	if err != nil {
 		code := "typst_compile_failed"
 		msg := "Failed to render Typst document"
@@ -165,18 +173,6 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 		UpdatedAt:        time.Now().UTC(),
 		RenderDurationMS: time.Since(req.Started).Milliseconds(),
 		Status:           api.RenderStatusReady,
-	}
-}
-
-func cleanupOldSVG(dir string) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if filepath.Ext(entry.Name()) == ".svg" {
-			_ = os.Remove(filepath.Join(dir, entry.Name()))
-		}
 	}
 }
 

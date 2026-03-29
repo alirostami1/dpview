@@ -3,7 +3,9 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
@@ -19,7 +21,7 @@ type Application interface {
 	Refresh(context.Context) (api.CurrentData, int, *api.Error)
 	ClearCurrent() api.CurrentData
 	SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error)
-	UpdateSettings(api.Settings) api.SettingsData
+	UpdateSettingsPatch(api.SettingsPatch) api.SettingsData
 	Snapshot() state.Snapshot
 	Subscribe() (<-chan api.Event, func())
 	Health() api.HealthData
@@ -43,18 +45,9 @@ type SeekRequest struct {
 	BottomLine int    `json:"bottom_line"`
 }
 
-type SettingsRequest struct {
-	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
-	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
-	EditorFileSyncEnabled       bool   `json:"editor_file_sync_enabled"`
-	SeekEnabled                 bool   `json:"seek_enabled"`
-	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
-	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
-	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`
-	MarkdownFrontMatterTitle    bool   `json:"markdown_frontmatter_title"`
-	Theme                       string `json:"theme"`
-	PreviewTheme                string `json:"preview_theme"`
-}
+type SettingsRequest = api.SettingsPatch
+
+const maxJSONBodyBytes = 1 << 20
 
 func New(app Application, static fs.FS) (*Server, error) {
 	if static == nil {
@@ -114,10 +107,9 @@ func (s *Server) handleSeek(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	var req CurrentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeDecodeError(w, err)
 		return
 	}
 	resp, status, err := s.app.SetCurrent(r.Context(), req.Path, req.Origin)
@@ -133,10 +125,9 @@ func (s *Server) handleDeleteCurrent(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleSetSeek(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	var req SeekRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeDecodeError(w, err)
 		return
 	}
 	resp, status, err := s.app.SetSeek(r.Context(), api.SeekData{
@@ -163,24 +154,12 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	var req SettingsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeDecodeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
-		AutoRefreshPaused:           req.AutoRefreshPaused,
-		SidebarCollapsed:            req.SidebarCollapsed,
-		EditorFileSyncEnabled:       req.EditorFileSyncEnabled,
-		SeekEnabled:                 req.SeekEnabled,
-		TypstPreviewTheme:           req.TypstPreviewTheme,
-		MarkdownFrontMatterVisible:  req.MarkdownFrontMatterVisible,
-		MarkdownFrontMatterExpanded: req.MarkdownFrontMatterExpanded,
-		MarkdownFrontMatterTitle:    req.MarkdownFrontMatterTitle,
-		Theme:                       req.Theme,
-		PreviewTheme:                req.PreviewTheme,
-	})))
+	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettingsPatch(req)))
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -286,4 +265,27 @@ func writeSSE(w http.ResponseWriter, event api.Event) {
 func writeJSON(w http.ResponseWriter, status int, payload api.Envelope) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxJSONBodyBytes))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return fmt.Errorf("unexpected trailing data")
+	}
+	return nil
+}
+
+func writeDecodeError(w http.ResponseWriter, err error) {
+	var maxErr *http.MaxBytesError
+	if errors.As(err, &maxErr) {
+		writeJSON(w, http.StatusRequestEntityTooLarge, api.Fail(api.NewError("request_too_large", "Request body is too large", err.Error())))
+		return
+	}
+	writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
 }

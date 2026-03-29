@@ -1,10 +1,12 @@
 package render
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -317,10 +319,14 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 	if err := os.WriteFile(path, []byte("= demo"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
+	var renderDir string
 	typst := &typstRenderer{
 		tempRoot: tempRoot,
 		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
 		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
+			if args[2] != tempRoot {
+				return nil, nil, errors.New("expected project root to be passed to typst")
+			}
 			wrapper, err := os.ReadFile(args[3])
 			if err != nil {
 				return nil, nil, err
@@ -328,6 +334,7 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 			if !strings.Contains(string(wrapper), `#include `) || !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
 				return nil, nil, errors.New("wrapper missing theme tokens")
 			}
+			renderDir = filepath.Dir(args[4])
 			pageOne := strings.ReplaceAll(args[4], "{p}", "1")
 			pageTwo := strings.ReplaceAll(args[4], "{p}", "2")
 			if err := os.WriteFile(pageOne, []byte("<svg><text>one</text></svg>"), 0o644); err != nil {
@@ -340,6 +347,7 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 		}),
 	}
 	svc := &Service{
+		root:      tempRoot,
 		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
 	}
@@ -357,6 +365,9 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 	}
 	if preview.SourceLineCount != 1 {
 		t.Fatalf("Render() source line count = %d", preview.SourceLineCount)
+	}
+	if _, err := os.Stat(renderDir); !os.IsNotExist(err) {
+		t.Fatalf("expected render dir cleanup, stat err = %v", err)
 	}
 }
 
@@ -381,6 +392,7 @@ func TestRenderTypstWithoutPreviewThemeCompilesSourceDirectly(t *testing.T) {
 		}),
 	}
 	svc := &Service{
+		root:      tempRoot,
 		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
 	}
@@ -421,4 +433,17 @@ type mockRunner func(context.Context, string, ...string) ([]byte, []byte, error)
 
 func (m mockRunner) Run(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
 	return m(ctx, name, args...)
+}
+
+func TestRenderCacheEvictsOldEntries(t *testing.T) {
+	svc := &Service{
+		cache:     make(map[string]*list.Element),
+		cacheList: list.New(),
+	}
+	for i := 0; i < maxCacheEntries+5; i++ {
+		svc.storeCache(string(rune('a'+(i%26)))+strconv.Itoa(i), api.Preview{Status: api.RenderStatusReady})
+	}
+	if svc.cacheList.Len() != maxCacheEntries {
+		t.Fatalf("cache size = %d", svc.cacheList.Len())
+	}
 }

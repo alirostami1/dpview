@@ -135,6 +135,12 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("POST /api/current invalid json status=%d body=%s", resp.StatusCode, body)
 	}
 
+	resp = performRequest(t, handler, http.MethodPost, "/api/current", `{"path":"notes/test.md","extra":true}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"invalid_json"`) {
+		t.Fatalf("POST /api/current unknown field status=%d body=%s", resp.StatusCode, body)
+	}
+
 	resp = performRequest(t, handler, http.MethodPost, "/api/seek", `{"path":"notes/test.md","line":12,"top_line":8,"bottom_line":16}`)
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusConflict || !strings.Contains(body, `"code":"current_mismatch"`) {
@@ -159,10 +165,22 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("DELETE /api/current status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"auto_refresh_paused":true,"sidebar_collapsed":true,"editor_file_sync_enabled":false,"seek_enabled":false,"typst_preview_theme":false,"markdown_frontmatter_visible":true,"markdown_frontmatter_expanded":false,"markdown_frontmatter_title":true,"theme":"dark","preview_theme":"github"}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"editor_file_sync_enabled":false,"seek_enabled":false,"preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"seek_enabled":true,"extra":true}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"invalid_json"`) {
+		t.Fatalf("POST /api/settings unknown field status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"preview_theme":"`+strings.Repeat("a", maxJSONBodyBytes)+`"}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(body, `"code":"request_too_large"`) {
+		t.Fatalf("POST /api/settings oversized body status=%d body=%s", resp.StatusCode, body)
 	}
 }
 
@@ -206,8 +224,39 @@ func (f fakeApp) SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api
 	return f.seek, http.StatusOK, nil
 }
 
-func (f fakeApp) UpdateSettings(api.Settings) api.SettingsData {
-	return f.settings
+func (f fakeApp) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
+	settings := f.settings.Settings
+	if patch.AutoRefreshPaused != nil {
+		settings.AutoRefreshPaused = *patch.AutoRefreshPaused
+	}
+	if patch.SidebarCollapsed != nil {
+		settings.SidebarCollapsed = *patch.SidebarCollapsed
+	}
+	if patch.EditorFileSyncEnabled != nil {
+		settings.EditorFileSyncEnabled = *patch.EditorFileSyncEnabled
+	}
+	if patch.SeekEnabled != nil {
+		settings.SeekEnabled = *patch.SeekEnabled
+	}
+	if patch.TypstPreviewTheme != nil {
+		settings.TypstPreviewTheme = *patch.TypstPreviewTheme
+	}
+	if patch.MarkdownFrontMatterVisible != nil {
+		settings.MarkdownFrontMatterVisible = *patch.MarkdownFrontMatterVisible
+	}
+	if patch.MarkdownFrontMatterExpanded != nil {
+		settings.MarkdownFrontMatterExpanded = *patch.MarkdownFrontMatterExpanded
+	}
+	if patch.MarkdownFrontMatterTitle != nil {
+		settings.MarkdownFrontMatterTitle = *patch.MarkdownFrontMatterTitle
+	}
+	if patch.Theme != nil {
+		settings.Theme = *patch.Theme
+	}
+	if patch.PreviewTheme != nil {
+		settings.PreviewTheme = *patch.PreviewTheme
+	}
+	return api.SettingsData{Settings: settings}
 }
 
 func (f fakeApp) Snapshot() state.Snapshot {

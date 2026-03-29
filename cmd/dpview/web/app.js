@@ -1,10 +1,11 @@
+import { applyPreviewSeek } from "./js/seek.js";
+import { encodeAppPath, isSettingsRoute, parseRoute } from "./js/routes.js";
+
 const STORAGE = {
   expanded: "dpview.expanded",
   currentPath: "dpview.currentPath",
   search: "dpview.search",
   theme: "dpview.theme",
-  previewTheme: "dpview.previewTheme",
-  sidebarCollapsed: "dpview.sidebarCollapsed",
 };
 
 const systemThemeMedia =
@@ -31,7 +32,7 @@ const state = {
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
   theme: localStorage.getItem(STORAGE.theme) || "system",
-  previewTheme: localStorage.getItem(STORAGE.previewTheme) || "default",
+  previewTheme: "default",
   sidebarCollapsed: false,
   frontMatterExpanded: null,
   localSelectionInFlight: "",
@@ -115,7 +116,6 @@ themeSelect.addEventListener("change", async () => {
 
 previewThemeSelect.addEventListener("change", async () => {
   state.previewTheme = previewThemeSelect.value;
-  localStorage.setItem(STORAGE.previewTheme, state.previewTheme);
   applyMarkdownTheme(state.previewTheme);
   renderPreview();
   await syncSettings({ rerenderTypst: true });
@@ -226,7 +226,6 @@ function applyMarkdownTheme(theme) {
 function setSidebarCollapsed(collapsed) {
   state.sidebarCollapsed = collapsed;
   state.settings.sidebar_collapsed = collapsed;
-  localStorage.setItem(STORAGE.sidebarCollapsed, String(collapsed));
   renderSidebar();
   void syncSettings();
 }
@@ -539,7 +538,6 @@ function applySeek(data) {
 function applySettings(data) {
   const settings = data.settings || {};
   const storedTheme = localStorage.getItem(STORAGE.theme);
-  const storedPreviewTheme = localStorage.getItem(STORAGE.previewTheme);
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
     sidebar_collapsed: !!settings.sidebar_collapsed,
@@ -553,13 +551,12 @@ function applySettings(data) {
     preview_theme: settings.preview_theme || "default",
   };
   state.theme = storedTheme || state.theme || "system";
-  state.previewTheme = storedPreviewTheme || state.settings.preview_theme;
+  state.previewTheme = state.settings.preview_theme;
   state.sidebarCollapsed = state.settings.sidebar_collapsed;
   themeSelect.value = state.theme;
   previewThemeSelect.value = state.previewTheme;
   applyTheme(state.theme);
   applyMarkdownTheme(state.previewTheme);
-  localStorage.setItem(STORAGE.sidebarCollapsed, String(state.sidebarCollapsed));
   renderSidebar();
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
   editorFileSyncInput.checked = !!state.settings.editor_file_sync_enabled;
@@ -639,161 +636,7 @@ function queueApplySeek() {
 }
 
 function applySeekToPreview() {
-  const seek = state.seek;
-  const file = state.current?.file;
-  const preview = state.current?.preview;
-  if (!state.settings.seek_enabled || !seek || !file || seek.path !== file.path || preview?.status !== "ready") {
-    return;
-  }
-
-  if (file.kind === "markdown") {
-    applyMarkdownSeek(seek);
-    return;
-  }
-  if (file.kind === "typst") {
-    applyTypstSeek(seek, preview);
-  }
-}
-
-function applyMarkdownSeek(seek) {
-  const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
-  if (!focusLine) {
-    return;
-  }
-  const candidates = collectMarkdownSeekCandidates();
-  if (!candidates.length) {
-    return;
-  }
-
-  const containing = candidates.filter((candidate) => (
-    focusLine >= candidate.start && focusLine <= candidate.end
-  ));
-
-  if (containing.length) {
-    const target = containing.reduce((best, candidate) => {
-      if (!best) {
-        return candidate;
-      }
-      const bestSpan = best.end - best.start;
-      const candidateSpan = candidate.end - candidate.start;
-      if (candidateSpan !== bestSpan) {
-        return candidateSpan < bestSpan ? candidate : best;
-      }
-      return candidate.depth > best.depth ? candidate : best;
-    }, null);
-    scrollPreviewToLine(target, focusLine);
-    return;
-  }
-
-  const before = candidates
-    .filter((candidate) => candidate.end < focusLine)
-    .reduce((best, candidate) => (!best || candidate.end > best.end ? candidate : best), null);
-  const after = candidates
-    .filter((candidate) => candidate.start > focusLine)
-    .reduce((best, candidate) => (!best || candidate.start < best.start ? candidate : best), null);
-
-  if (before && after) {
-    scrollPreviewBetweenCandidates(before, after, focusLine);
-    return;
-  }
-
-  scrollPreviewToLine(before || after, focusLine);
-}
-
-function applyTypstSeek(seek, preview) {
-  const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
-  const totalLines = Number(preview?.source_line_count || 0);
-  if (!focusLine || !totalLines) {
-    return;
-  }
-  const container = fileViewEl;
-  const scrollRange = container.scrollHeight - container.clientHeight;
-  if (scrollRange <= 0) {
-    return;
-  }
-  const progress = totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
-  container.scrollTo({ top: progress * scrollRange, behavior: "auto" });
-}
-
-function collectMarkdownSeekCandidates() {
-  return [...previewEl.querySelectorAll("[data-source-start-line][data-source-end-line]")]
-    .map((node) => {
-      const start = Number(node.dataset.sourceStartLine || 0);
-      const end = Number(node.dataset.sourceEndLine || start);
-      if (!start || !end) {
-        return null;
-      }
-      return {
-        node,
-        start,
-        end,
-        depth: countNodeDepth(node),
-      };
-    })
-    .filter(Boolean);
-}
-
-function countNodeDepth(node) {
-  let depth = 0;
-  for (let current = node.parentElement; current; current = current.parentElement) {
-    depth += 1;
-  }
-  return depth;
-}
-
-function scrollPreviewToLine(candidate, line) {
-  if (!candidate) {
-    return;
-  }
-  const container = fileViewEl;
-  const containerRect = container.getBoundingClientRect();
-  const nodeRect = candidate.node.getBoundingClientRect();
-  const span = Math.max(1, candidate.end - candidate.start);
-  const progress = Math.max(0, Math.min(1, (line - candidate.start) / span));
-  const targetPoint = nodeRect.top + (nodeRect.height * progress);
-  const targetTop = container.scrollTop + (targetPoint - containerRect.top) - (container.clientHeight * 0.32);
-  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  container.scrollTo({
-    top: Math.max(0, Math.min(maxTop, targetTop)),
-    behavior: "auto",
-  });
-}
-
-function scrollPreviewBetweenCandidates(before, after, line) {
-  const container = fileViewEl;
-  const containerRect = container.getBoundingClientRect();
-  const beforeRect = before.node.getBoundingClientRect();
-  const afterRect = after.node.getBoundingClientRect();
-  const lineSpan = Math.max(1, after.start - before.end);
-  const progress = Math.max(0, Math.min(1, (line - before.end) / lineSpan));
-  const beforePoint = beforeRect.top + beforeRect.height;
-  const afterPoint = afterRect.top;
-  const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
-  const targetTop = container.scrollTop + (targetPoint - containerRect.top) - (container.clientHeight * 0.32);
-  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  container.scrollTo({
-    top: Math.max(0, Math.min(maxTop, targetTop)),
-    behavior: "auto",
-  });
-}
-
-function encodeAppPath(path) {
-  if (!path) {
-    return "/";
-  }
-  return `/${path.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
-}
-
-function locationDeepLinkPath() {
-  const url = new URL(window.location.href);
-  if (url.pathname === "/") {
-    return "";
-  }
-  return url.pathname
-    .split("/")
-    .filter(Boolean)
-    .map((part) => decodeURIComponent(part))
-    .join("/");
+  applyPreviewSeek(fileViewEl, previewEl, state.current, state.seek, state.settings);
 }
 
 async function setCurrent(path) {
@@ -898,28 +741,6 @@ loadInitialState()
 
 function fileExists(path) {
   return state.files.some((file) => file.path === path);
-}
-
-function parseRoute(pathname, search = "") {
-  const params = new URLSearchParams(search);
-  const settingsOpen = params.get("settings") === "open";
-  const decodedPath = pathname
-    .split("/")
-    .filter(Boolean)
-    .map((part) => decodeURIComponent(part));
-
-  if (settingsOpen) {
-    return { kind: "settings" };
-  }
-  if (decodedPath.length === 0) {
-    return { kind: "file", path: "" };
-  }
-  const filePath = decodedPath.join("/");
-  return { kind: "file", path: filePath };
-}
-
-function isSettingsRoute() {
-  return parseRoute(window.location.pathname, window.location.search).kind === "settings";
 }
 
 function applyRoute(route) {

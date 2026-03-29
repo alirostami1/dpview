@@ -101,6 +101,19 @@ type Settings struct {
 	PreviewTheme                string `json:"preview_theme"`
 }
 
+type SettingsPatch struct {
+	AutoRefreshPaused           *bool   `json:"auto_refresh_paused,omitempty"`
+	SidebarCollapsed            *bool   `json:"sidebar_collapsed,omitempty"`
+	EditorFileSyncEnabled       *bool   `json:"editor_file_sync_enabled,omitempty"`
+	SeekEnabled                 *bool   `json:"seek_enabled,omitempty"`
+	TypstPreviewTheme           *bool   `json:"typst_preview_theme,omitempty"`
+	MarkdownFrontMatterVisible  *bool   `json:"markdown_frontmatter_visible,omitempty"`
+	MarkdownFrontMatterExpanded *bool   `json:"markdown_frontmatter_expanded,omitempty"`
+	MarkdownFrontMatterTitle    *bool   `json:"markdown_frontmatter_title,omitempty"`
+	Theme                       *string `json:"theme,omitempty"`
+	PreviewTheme                *string `json:"preview_theme,omitempty"`
+}
+
 type SettingsData struct {
 	Settings Settings `json:"settings"`
 	Version  int64    `json:"version"`

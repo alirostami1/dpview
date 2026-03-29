@@ -31,6 +31,7 @@ func main() {
 	}
 
 	renderer, err := render.NewService(render.Config{
+		Root:          cfg.Root,
 		TypstBinary:   cfg.TypstBinary,
 		MaxFileSize:   cfg.MaxFileSize,
 		RenderTimeout: cfg.RenderTimeout,
@@ -74,7 +75,7 @@ func main() {
 		log.Fatalf("http: %v", err)
 	}
 
-	log.Printf("serving %s on http://%s (log-level=%s)", cfg.Root, cfg.Address(), cfg.LogLevel)
+	log.Printf("serving %s on http://%s", cfg.Root, cfg.Address())
 	if status, ok := renderer.RendererStatus(files.KindTypst); ok && !status.Available {
 		log.Printf("typst unavailable: %s", status.Details["reason"])
 	}

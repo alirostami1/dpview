@@ -39,6 +39,7 @@ Install this repository as a Neovim plugin with your plugin manager, then call
       host = "127.0.0.1",
       port = nil,
       sidebar_collapsed = false,
+      editor_file_sync = true,
       theme = "dark",
       preview_theme = "github",
       cursor_seek = true,
@@ -60,6 +61,8 @@ Options:
 - `host`: bind address for the local server
 - `port`: fixed port, or `nil` to auto-pick a free localhost port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed
+- `editor_file_sync`: allow Neovim to switch the DPview preview to the active
+  supported buffer
 - `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current
   `background`
 - `preview_theme`: DPview preview theme id such as `default`, `github`,
@@ -79,10 +82,10 @@ Options:
 - `notify`: enable or disable plugin notifications
 - `open_cmd`: optional Lua function that receives the DPview URL
 
-Sidebar, seek, and theme values are passed to DPview at startup with the
-matching CLI flags, including `--seek-enabled`, `--typst-preview-theme`,
-`--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
-`--markdown-frontmatter-title`.
+Sidebar, sync, and theme values are passed to DPview at startup with the
+matching CLI flags, including `--editor-file-sync`, `--seek-enabled`,
+`--typst-preview-theme`, `--markdown-frontmatter-visible`,
+`--markdown-frontmatter-expanded`, and `--markdown-frontmatter-title`.
 
 ==============================================================================
 4. Commands                                                  *dpview-commands*
@@ -95,6 +98,12 @@ matching CLI flags, including `--seek-enabled`, `--typst-preview-theme`,
 - `:DPviewSeekEnable` enable seeking updates in the plugin and preview
 - `:DPviewSeekDisable` disable seeking updates in the plugin and preview
 - `:DPviewSeekToggle` toggle seeking updates in the plugin and preview
+- `:DPviewFileSyncEnable` enable editor-driven file following in the plugin and
+  preview
+- `:DPviewFileSyncDisable` disable editor-driven file following in the plugin
+  and preview
+- `:DPviewFileSyncToggle` toggle editor-driven file following in the plugin and
+  preview
 
 ==============================================================================
 vim:tw=78:ts=8:noet:ft=help:norl:

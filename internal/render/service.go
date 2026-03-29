@@ -1,6 +1,7 @@
 package render
 
 import (
+	"container/list"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -24,12 +25,14 @@ type Renderer interface {
 }
 
 type Config struct {
+	Root          string
 	TypstBinary   string
 	MaxFileSize   int64
 	RenderTimeout time.Duration
 }
 
 type RenderRequest struct {
+	Root     string
 	Info     files.FileInfo
 	AbsPath  string
 	Source   []byte
@@ -53,12 +56,21 @@ type runnerSetter interface {
 
 type Service struct {
 	limits    api.Limits
+	root      string
 	renderers map[files.Kind]DocumentRenderer
 	closers   []io.Closer
 
-	mu    sync.RWMutex
-	cache map[string]api.Preview
+	mu        sync.RWMutex
+	cache     map[string]*list.Element
+	cacheList *list.List
 }
+
+type cacheEntry struct {
+	key     string
+	preview api.Preview
+}
+
+const maxCacheEntries = 128
 
 func NewService(cfg Config) (*Service, error) {
 	svc := &Service{
@@ -66,8 +78,10 @@ func NewService(cfg Config) (*Service, error) {
 			MaxFileSizeBytes: cfg.MaxFileSize,
 			RenderTimeoutMS:  cfg.RenderTimeout.Milliseconds(),
 		},
+		root:      cfg.Root,
 		renderers: make(map[files.Kind]DocumentRenderer),
-		cache:     make(map[string]api.Preview),
+		cache:     make(map[string]*list.Element),
+		cacheList: list.New(),
 	}
 
 	svc.Register(newMarkdownRenderer())
@@ -160,6 +174,7 @@ func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath strin
 	}
 
 	preview := renderer.Render(renderCtx, RenderRequest{
+		Root:     s.root,
 		Info:     info,
 		AbsPath:  absPath,
 		Source:   source,
@@ -174,20 +189,44 @@ func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath strin
 }
 
 func (s *Service) loadCache(key string) (api.Preview, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	preview, ok := s.cache[key]
-	return preview, ok
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry, ok := s.cache[key]
+	if !ok {
+		return api.Preview{}, false
+	}
+	s.cacheList.MoveToFront(entry)
+	return entry.Value.(cacheEntry).preview, true
 }
 
 func (s *Service) storeCache(key string, preview api.Preview) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cache == nil {
-		s.cache = make(map[string]api.Preview)
+		s.cache = make(map[string]*list.Element)
+	}
+	if s.cacheList == nil {
+		s.cacheList = list.New()
+	}
+	if existing, ok := s.cache[key]; ok {
+		preview.CacheHit = false
+		existing.Value = cacheEntry{key: key, preview: preview}
+		s.cacheList.MoveToFront(existing)
+		return
 	}
 	preview.CacheHit = false
-	s.cache[key] = preview
+	elem := s.cacheList.PushFront(cacheEntry{key: key, preview: preview})
+	s.cache[key] = elem
+	if s.cacheList.Len() <= maxCacheEntries {
+		return
+	}
+	tail := s.cacheList.Back()
+	if tail == nil {
+		return
+	}
+	evicted := tail.Value.(cacheEntry)
+	delete(s.cache, evicted.key)
+	s.cacheList.Remove(tail)
 }
 
 func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings) string {

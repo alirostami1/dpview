@@ -21,7 +21,6 @@ type Config struct {
 	Theme                       string
 	PreviewTheme                string
 	TypstBinary                 string
-	LogLevel                    string
 	OpenBrowser                 bool
 	MaxFileSize                 int64
 	RenderTimeout               time.Duration
@@ -42,7 +41,6 @@ func Parse() (Config, error) {
 	flag.StringVar(&cfg.Theme, "theme", "light", "initial app theme: light or dark")
 	flag.StringVar(&cfg.PreviewTheme, "preview-theme", "default", "initial preview theme id")
 	flag.StringVar(&cfg.TypstBinary, "typst-binary", "", "path to Typst executable to use instead of PATH lookup")
-	flag.StringVar(&cfg.LogLevel, "log-level", "info", "log level")
 	flag.BoolVar(&cfg.OpenBrowser, "open-browser", false, "open the browser after startup")
 	flag.Int64Var(&cfg.MaxFileSize, "max-file-size", 4<<20, "maximum previewable source size in bytes")
 	flag.DurationVar(&cfg.RenderTimeout, "render-timeout", 5*time.Second, "per-render timeout")

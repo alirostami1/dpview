@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/aros/dpview/internal/api"
@@ -25,7 +26,7 @@ type Service struct {
 	store    *state.Store
 
 	mu             sync.Mutex
-	watcherEnabled bool
+	watcherEnabled atomic.Bool
 }
 
 func New(files *files.Service, renderer *render.Service, store *state.Store) *Service {
@@ -48,7 +49,7 @@ func (s *Service) Health() api.HealthData {
 		EventID:   snap.EventID,
 		Renderers: s.renderer.RendererStatuses(),
 		Limits:    s.renderer.Limits(),
-		Watcher:   api.WatcherStatus{Enabled: s.watcherEnabled},
+		Watcher:   api.WatcherStatus{Enabled: s.watcherEnabled.Load()},
 	}
 }
 
@@ -112,10 +113,10 @@ func (s *Service) SetSeek(_ context.Context, seek api.SeekData) (api.SeekData, i
 	return s.store.SetSeek(normalizeSeek(info.Path, seek), "api"), http.StatusOK, nil
 }
 
-func (s *Service) UpdateSettings(settings api.Settings) api.SettingsData {
+func (s *Service) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
 	previous := s.store.Snapshot().Settings.Settings
-	data := s.store.UpdateSettings(settings)
-	if previous.SeekEnabled && !settings.SeekEnabled {
+	data := s.store.PatchSettings(patch)
+	if previous.SeekEnabled && patch.SeekEnabled != nil && !*patch.SeekEnabled {
 		s.store.ClearSeek("settings")
 	}
 	return data
@@ -180,7 +181,7 @@ func (s *Service) StartWatcher() (*watch.Watcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.watcherEnabled = true
+	s.watcherEnabled.Store(true)
 	return watcher, nil
 }
 

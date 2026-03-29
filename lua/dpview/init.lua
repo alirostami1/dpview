@@ -145,37 +145,19 @@ local function sync_settings()
     return
   end
   http.request_json({
-    method = "GET",
+    method = "POST",
     host = state.config.host,
     port = state.server.port,
     path = "/api/settings",
+    body = vim.json.encode(current_settings_payload()),
   }, function(err, response, payload)
     if err then
-      notify(vim.log.levels.ERROR, "failed to fetch settings: " .. err)
+      notify(vim.log.levels.ERROR, "failed to sync settings: " .. err)
       return
     end
     if response.status ~= 200 or not payload or payload.ok ~= true then
-      notify(vim.log.levels.ERROR, "dpview rejected settings lookup")
-      return
+      notify(vim.log.levels.ERROR, "dpview rejected updated settings")
     end
-
-    local settings = payload.data and payload.data.settings or {}
-    local merged = vim.tbl_extend("force", settings, current_settings_payload())
-    http.request_json({
-      method = "POST",
-      host = state.config.host,
-      port = state.server.port,
-      path = "/api/settings",
-      body = vim.json.encode(merged),
-    }, function(post_err, post_response, post_payload)
-      if post_err then
-        notify(vim.log.levels.ERROR, "failed to sync settings: " .. post_err)
-        return
-      end
-      if post_response.status ~= 200 or not post_payload or post_payload.ok ~= true then
-        notify(vim.log.levels.ERROR, "dpview rejected updated settings")
-      end
-    end)
   end)
 end
 

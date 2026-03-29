@@ -21,12 +21,21 @@ local function is_executable(path)
 end
 
 local function pick_free_port(host)
-  local _ = host
-  if not M._seeded_random then
-    math.randomseed(uv.hrtime())
-    M._seeded_random = true
+  local tcp = uv.new_tcp()
+  if not tcp then
+    return nil, "failed to allocate TCP socket"
   end
-  return math.random(49152, 65535)
+  local ok, bind_err = tcp:bind(host, 0)
+  if not ok then
+    tcp:close()
+    return nil, "failed to probe a free port: " .. tostring(bind_err)
+  end
+  local sockname = tcp:getsockname()
+  tcp:close()
+  if not sockname or not sockname.port then
+    return nil, "failed to read probed port"
+  end
+  return sockname.port
 end
 
 local function repo_go_fallback(root)
