@@ -42,7 +42,7 @@ func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "sample.md", Kind: files.KindMarkdown}, path)
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "sample.md", Kind: files.KindMarkdown}, path, api.Settings{})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -68,7 +68,7 @@ func TestRenderMarkdownSanitizesUnsafeLinks(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "unsafe.md", Kind: files.KindMarkdown}, path)
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "unsafe.md", Kind: files.KindMarkdown}, path, api.Settings{})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -86,7 +86,7 @@ func TestRenderTypstMissingBinaryReturnsClearError(t *testing.T) {
 		limits:    api.Limits{MaxFileSizeBytes: 1 << 20, RenderTimeoutMS: 2000},
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: &typstRenderer{}},
 	}
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{})
 	if preview.Error == nil || preview.Error.Code != "typst_unavailable" {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -102,8 +102,15 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 		tempRoot: tempRoot,
 		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
 		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
-			pageOne := strings.ReplaceAll(args[2], "{p}", "1")
-			pageTwo := strings.ReplaceAll(args[2], "{p}", "2")
+			wrapper, err := os.ReadFile(args[3])
+			if err != nil {
+				return nil, nil, err
+			}
+			if !strings.Contains(string(wrapper), `#include `) || !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
+				return nil, nil, errors.New("wrapper missing theme tokens")
+			}
+			pageOne := strings.ReplaceAll(args[4], "{p}", "1")
+			pageTwo := strings.ReplaceAll(args[4], "{p}", "2")
 			if err := os.WriteFile(pageOne, []byte("<svg><text>one</text></svg>"), 0o644); err != nil {
 				return nil, nil, err
 			}
@@ -118,7 +125,7 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{Theme: "dark", PreviewTheme: "github"})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -144,7 +151,7 @@ func TestRenderTypstCompileFailureIncludesStderr(t *testing.T) {
 		renderers: map[files.Kind]DocumentRenderer{files.KindTypst: typst},
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path)
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "demo.typ", Kind: files.KindTypst}, path, api.Settings{})
 	if preview.Error == nil || preview.Error.Code != "typst_compile_failed" || !strings.Contains(preview.Error.Detail, "compile failed") {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}

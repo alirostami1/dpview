@@ -15,7 +15,7 @@ const state = {
   files: [],
   tree: [],
   current: null,
-  settings: { auto_refresh_paused: false },
+  settings: { auto_refresh_paused: false, theme: "light", preview_theme: "default" },
   health: null,
   expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
   search: localStorage.getItem(STORAGE.search) || "",
@@ -64,31 +64,30 @@ toggleSidebarButton.addEventListener("click", () => setSidebarCollapsed(true));
 showSidebarButton.addEventListener("click", () => setSidebarCollapsed(false));
 
 pauseRefreshInput.addEventListener("change", async () => {
-  const result = await apiFetch("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ auto_refresh_paused: pauseRefreshInput.checked }),
-  });
+  const previous = state.settings.auto_refresh_paused;
+  state.settings.auto_refresh_paused = pauseRefreshInput.checked;
+  const result = await syncSettings();
   if (!result.ok) {
-    setStatus(result.error.message);
-    pauseRefreshInput.checked = state.settings.auto_refresh_paused;
+    state.settings.auto_refresh_paused = previous;
+    pauseRefreshInput.checked = previous;
     return;
   }
-  applySettings(result.data);
   setStatus("Settings updated.");
 });
 
-themeSelect.addEventListener("change", () => {
+themeSelect.addEventListener("change", async () => {
   state.theme = themeSelect.value;
   localStorage.setItem(STORAGE.theme, state.theme);
   applyTheme(state.theme);
+  await syncSettings({ rerenderTypst: true });
 });
 
-previewThemeSelect.addEventListener("change", () => {
+previewThemeSelect.addEventListener("change", async () => {
   state.previewTheme = previewThemeSelect.value;
   localStorage.setItem(STORAGE.previewTheme, state.previewTheme);
   applyMarkdownTheme(state.previewTheme);
   renderPreview();
+  await syncSettings({ rerenderTypst: true });
 });
 
 function setStatus(message) {
@@ -101,11 +100,13 @@ function renderStatus() {
 }
 
 function applyTheme(theme) {
-  const resolvedTheme =
-    theme === "system"
-      ? (systemThemeMedia?.matches ? "dark" : "light")
-      : theme;
-  document.body.dataset.theme = resolvedTheme;
+  document.body.dataset.theme = resolveThemeMode(theme);
+}
+
+function resolveThemeMode(theme) {
+  return theme === "system"
+    ? (systemThemeMedia?.matches ? "dark" : "light")
+    : theme;
 }
 
 function applyMarkdownTheme(theme) {
@@ -143,9 +144,10 @@ function escapeHTML(value) {
 }
 
 if (systemThemeMedia) {
-  systemThemeMedia.addEventListener("change", () => {
+  systemThemeMedia.addEventListener("change", async () => {
     if (state.theme === "system") {
       applyTheme("system");
+      await syncSettings({ rerenderTypst: true });
     }
   });
 }
@@ -255,7 +257,9 @@ function renderPreview() {
   const previewWrapperClass =
     file?.kind === "markdown"
       ? "preview-content markdown-preview"
-      : "preview-content";
+      : file?.kind === "typst"
+        ? "preview-content typst-preview"
+        : "preview-content";
 
   if (preview.status === "rendering") {
     previewEl.className = "preview";
@@ -330,8 +334,56 @@ function applyCurrent(data) {
 }
 
 function applySettings(data) {
-  state.settings = data.settings || { auto_refresh_paused: false };
+  const settings = data.settings || {};
+  const storedTheme = localStorage.getItem(STORAGE.theme);
+  const storedPreviewTheme = localStorage.getItem(STORAGE.previewTheme);
+  state.settings = {
+    auto_refresh_paused: !!settings.auto_refresh_paused,
+    theme: settings.theme || "light",
+    preview_theme: settings.preview_theme || "default",
+  };
+  state.theme = storedTheme || state.theme || "system";
+  state.previewTheme = storedPreviewTheme || state.settings.preview_theme;
+  themeSelect.value = state.theme;
+  previewThemeSelect.value = state.previewTheme;
+  applyTheme(state.theme);
+  applyMarkdownTheme(state.previewTheme);
   pauseRefreshInput.checked = !!state.settings.auto_refresh_paused;
+}
+
+function currentSettingsPayload() {
+  return {
+    auto_refresh_paused: !!state.settings.auto_refresh_paused,
+    theme: resolveThemeMode(state.theme),
+    preview_theme: state.previewTheme,
+  };
+}
+
+async function refreshCurrentPreview() {
+  const result = await apiFetch("/api/refresh", { method: "POST" });
+  if (!result.ok) {
+    setStatus(result.error.message);
+    return result;
+  }
+  applyCurrent(result.data);
+  return result;
+}
+
+async function syncSettings(options = {}) {
+  const result = await apiFetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(currentSettingsPayload()),
+  });
+  if (!result.ok) {
+    setStatus(result.error.message);
+    return result;
+  }
+  applySettings(result.data);
+  if (options.rerenderTypst && state.current?.file?.kind === "typst") {
+    return refreshCurrentPreview();
+  }
+  return result;
 }
 
 function applyHealth(data) {
@@ -383,6 +435,14 @@ async function loadInitialState() {
   applyCurrent(current.data);
   applySettings(settings.data);
   setPage(state.page);
+
+  const initialSettings = settings.data.settings || {};
+  if (
+    resolveThemeMode(state.theme) !== (initialSettings.theme || "light") ||
+    state.previewTheme !== (initialSettings.preview_theme || "default")
+  ) {
+    await syncSettings({ rerenderTypst: current.data.file?.kind === "typst" });
+  }
 
   const deeplinkPath = new URL(window.location.href).searchParams.get("path");
   const storedPath = localStorage.getItem(STORAGE.currentPath);

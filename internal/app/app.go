@@ -58,7 +58,7 @@ func (s *Service) SetCurrent(ctx context.Context, rel string) (api.CurrentData, 
 		return api.CurrentData{}, status, apiErr
 	}
 	s.store.PublishRenderStarted(&info)
-	preview := s.renderer.Render(ctx, info, abs)
+	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
 	selectionChanged := s.currentPath() != info.Path
 	return s.store.SetCurrent(&info, preview, "api", selectionChanged), http.StatusOK, nil
 }
@@ -77,7 +77,7 @@ func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error
 		return api.CurrentData{}, status, apiErr
 	}
 	s.store.PublishRenderStarted(&info)
-	preview := s.renderer.Render(ctx, info, abs)
+	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
 	return s.store.SetCurrent(&info, preview, "refresh", false), http.StatusOK, nil
 }
 

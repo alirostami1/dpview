@@ -167,6 +167,10 @@ select {
   min-height: 100%;
 }
 
+.preview-content.typst-preview {
+  padding: 1.5rem;
+}
+
 .markdown-theme {
   display: flow-root;
   width: 100%;
@@ -181,6 +185,25 @@ select {
 
 .preview-content pre {
   overflow: auto;
+}
+
+.typst-pages {
+  display: grid;
+  gap: 1.5rem;
+  justify-items: center;
+}
+
+.typst-page {
+  width: min(100%, 960px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: auto;
+}
+
+.typst-page svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .preview.empty {

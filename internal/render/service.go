@@ -30,11 +30,12 @@ type Config struct {
 }
 
 type RenderRequest struct {
-	Info    files.FileInfo
-	AbsPath string
-	Source  []byte
-	Started time.Time
-	Limits  api.Limits
+	Info     files.FileInfo
+	AbsPath  string
+	Source   []byte
+	Started  time.Time
+	Limits   api.Limits
+	Settings api.Settings
 }
 
 type DocumentRenderer interface {
@@ -134,7 +135,7 @@ func (s *Service) SetRunner(runner CommandRunner) {
 	}
 }
 
-func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath string) api.Preview {
+func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath string, settings api.Settings) api.Preview {
 	start := time.Now().UTC()
 	renderCtx, cancel := context.WithTimeout(ctx, time.Duration(s.limits.RenderTimeoutMS)*time.Millisecond)
 	defer cancel()
@@ -147,7 +148,7 @@ func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath strin
 		return errPreview(start, "file_too_large", "File exceeds configured preview limit", fmt.Sprintf("%d > %d bytes", len(source), s.limits.MaxFileSizeBytes))
 	}
 
-	cacheKey := renderCacheKey(info, source)
+	cacheKey := renderCacheKey(info, source, settings)
 	if cached, ok := s.loadCache(cacheKey); ok {
 		cached.CacheHit = true
 		return cached
@@ -159,11 +160,12 @@ func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath strin
 	}
 
 	preview := renderer.Render(renderCtx, RenderRequest{
-		Info:    info,
-		AbsPath: absPath,
-		Source:  source,
-		Started: start,
-		Limits:  s.limits,
+		Info:     info,
+		AbsPath:  absPath,
+		Source:   source,
+		Started:  start,
+		Limits:   s.limits,
+		Settings: settings,
 	})
 	if preview.Error == nil {
 		s.storeCache(cacheKey, preview)
@@ -188,8 +190,14 @@ func (s *Service) storeCache(key string, preview api.Preview) {
 	s.cache[key] = preview
 }
 
-func renderCacheKey(info files.FileInfo, source []byte) string {
-	return info.Path + ":" + info.ModTime.UTC().Format(time.RFC3339Nano) + ":" + shortHash(source)
+func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings) string {
+	return strings.Join([]string{
+		info.Path,
+		info.ModTime.UTC().Format(time.RFC3339Nano),
+		shortHash(source),
+		settings.Theme,
+		settings.PreviewTheme,
+	}, ":")
 }
 
 func shortHash(data []byte) string {

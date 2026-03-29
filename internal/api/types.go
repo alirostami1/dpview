@@ -62,7 +62,9 @@ type FilesData struct {
 }
 
 type Settings struct {
-	AutoRefreshPaused bool `json:"auto_refresh_paused"`
+	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
+	Theme             string `json:"theme"`
+	PreviewTheme      string `json:"preview_theme"`
 }
 
 type SettingsData struct {

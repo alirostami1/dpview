@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 
-	"codeberg.org/aros/dpview.git/internal/api"
 	"codeberg.org/aros/dpview.git/internal/app"
 	"codeberg.org/aros/dpview.git/internal/config"
 	"codeberg.org/aros/dpview.git/internal/files"
@@ -41,7 +40,6 @@ func main() {
 	defer renderer.Close()
 
 	store := state.NewStore()
-	store.UpdateSettings(api.Settings{})
 	application := app.New(fileService, renderer, store)
 	if err := application.Rescan(); err != nil {
 		log.Fatalf("scan root: %v", err)

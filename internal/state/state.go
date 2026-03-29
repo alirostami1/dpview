@@ -33,7 +33,11 @@ func NewStore() *Store {
 	return &Store{
 		version: 1,
 		preview: api.Preview{Status: api.RenderStatusIdle},
-		subs:    make(map[chan api.Event]struct{}),
+		settings: api.Settings{
+			Theme:        "light",
+			PreviewTheme: "default",
+		},
+		subs: make(map[chan api.Event]struct{}),
 	}
 }
 

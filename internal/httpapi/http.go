@@ -33,7 +33,9 @@ type CurrentRequest struct {
 }
 
 type SettingsRequest struct {
-	AutoRefreshPaused bool `json:"auto_refresh_paused"`
+	AutoRefreshPaused bool   `json:"auto_refresh_paused"`
+	Theme             string `json:"theme"`
+	PreviewTheme      string `json:"preview_theme"`
 }
 
 func New(app Application, static fs.FS) (*Server, error) {
@@ -123,7 +125,11 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, api.Fail(api.NewError("invalid_json", "Invalid JSON body", err.Error())))
 		return
 	}
-	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{AutoRefreshPaused: req.AutoRefreshPaused})))
+	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettings(api.Settings{
+		AutoRefreshPaused: req.AutoRefreshPaused,
+		Theme:             req.Theme,
+		PreviewTheme:      req.PreviewTheme,
+	})))
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
