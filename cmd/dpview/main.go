@@ -16,7 +16,7 @@ import (
 	"codeberg.org/aros/dpview/internal/state"
 )
 
-//go:embed web/*
+//go:embed web
 var embedded embed.FS
 
 func main() {
