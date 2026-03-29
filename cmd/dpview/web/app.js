@@ -72,7 +72,7 @@ searchInput.addEventListener("input", () => {
   renderTree();
 });
 
-openSettingsButton.addEventListener("click", () => setPage("settings"));
+openSettingsButton.addEventListener("click", () => setPage(state.page === "settings" ? "file" : "settings"));
 closeSettingsButton.addEventListener("click", () => setPage("file"));
 toggleSidebarButton.addEventListener("click", () => setSidebarCollapsed(true));
 showSidebarButton.addEventListener("click", () => setSidebarCollapsed(false));
