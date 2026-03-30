@@ -20,6 +20,7 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	file := files.FileInfo{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}
 	store.SetCurrent(&file, api.Preview{HTML: "<p>ok</p>", Status: api.RenderStatusReady}, "test", true)
 	store.SetSeek(api.SeekData{Path: "notes/test.md", Line: 8, TopLine: 4, BottomLine: 12, FocusLine: 8}, "test")
+	store.AppendLog(api.LogEntry{Level: "error", Source: "render", Code: "render_failed", Message: "Render failed", Detail: "boom"})
 
 	server, err := New(fakeApp{
 		store:  store,
@@ -62,6 +63,12 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	body = readBody(t, resp.Body)
 	if !strings.Contains(body, `"path":"notes/test.md"`) || !strings.Contains(body, `"focus_line":8`) {
 		t.Fatalf("GET /api/seek body=%s", body)
+	}
+
+	resp = performRequest(t, handler, http.MethodGet, "/api/logs", "")
+	body = readBody(t, resp.Body)
+	if !strings.Contains(body, `"Render failed"`) || !strings.Contains(body, `"entries"`) {
+		t.Fatalf("GET /api/logs body=%s", body)
 	}
 
 	resp = performRequest(t, handler, http.MethodGet, "/styles.css", "")
@@ -113,6 +120,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		seekErr:       api.NewError("current_mismatch", "seek path must match the current file", ""),
 		seekStatus:    http.StatusConflict,
 		seek:          api.SeekData{Path: "notes/test.md", Line: 12, TopLine: 8, BottomLine: 16, FocusLine: 12},
+		logs:          api.LogData{Entries: []api.LogEntry{{Level: "error", Source: "render", Code: "render_failed", Message: "failed"}}},
 		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
@@ -182,6 +190,12 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 	if resp.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(body, `"code":"request_too_large"`) {
 		t.Fatalf("POST /api/settings oversized body status=%d body=%s", resp.StatusCode, body)
 	}
+
+	resp = performRequest(t, handler, http.MethodDelete, "/api/logs", "")
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"entries":[]`) {
+		t.Fatalf("DELETE /api/logs status=%d body=%s", resp.StatusCode, body)
+	}
 }
 
 type fakeApp struct {
@@ -196,6 +210,7 @@ type fakeApp struct {
 	seekStatus    int
 	refreshErr    *api.Error
 	refreshStatus int
+	logs          api.LogData
 	settings      api.SettingsData
 }
 
@@ -259,11 +274,15 @@ func (f fakeApp) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
 	return api.SettingsData{Settings: settings}
 }
 
+func (f fakeApp) ClearLogs() api.LogData {
+	return api.LogData{Entries: []api.LogEntry{}}
+}
+
 func (f fakeApp) Snapshot() state.Snapshot {
 	if f.store != nil {
 		return f.store.Snapshot()
 	}
-	return state.Snapshot{Current: f.current, Seek: f.seek, Settings: f.settings}
+	return state.Snapshot{Current: f.current, Seek: f.seek, Logs: f.logs, Settings: f.settings}
 }
 
 func (f fakeApp) Subscribe() (<-chan api.Event, func()) {

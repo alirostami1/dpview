@@ -16,16 +16,20 @@
             <button id="toggle-sidebar" type="button" aria-label="Toggle sidebar">Hide</button>
             <button id="open-settings" type="button">Settings</button>
           </div>
-          <input id="search" type="search" placeholder="Search files">
+          <input id="search" type="search" placeholder="Search files" aria-label="Search files">
         </div>
         <nav id="tree" class="tree" aria-label="Files"></nav>
       </aside>
 
       <main class="main">
         <button id="show-sidebar" class="show-sidebar hidden" type="button">Files</button>
+        <div id="connection-banner" class="connection-banner hidden" role="alert" aria-live="assertive">
+          <span id="connection-message"></span>
+          <button id="retry-connection" type="button">Retry now</button>
+        </div>
 
         <section id="file-view" class="panel">
-          <div id="preview" class="preview empty">No file selected.</div>
+          <div id="preview" class="preview empty" tabindex="-1">No file selected.</div>
         </section>
 
         <section id="settings-view" class="panel hidden">
@@ -38,8 +42,16 @@
             <div class="settings-grid">
               <section class="settings-block">
                 <h2>Status</h2>
-                <div id="status" class="status"></div>
+                <div id="status" class="status" role="status" aria-live="polite"></div>
                 <div id="health" class="status-list"></div>
+              </section>
+
+              <section class="settings-block">
+                <div class="settings-block-header">
+                  <h2>Error Log</h2>
+                  <button id="clear-logs" type="button">Clear log</button>
+                </div>
+                <div id="logs" class="log-list" aria-live="polite"></div>
               </section>
 
               <section class="settings-block">

@@ -22,6 +22,7 @@ type Application interface {
 	ClearCurrent() api.CurrentData
 	SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error)
 	UpdateSettingsPatch(api.SettingsPatch) api.SettingsData
+	ClearLogs() api.LogData
 	Snapshot() state.Snapshot
 	Subscribe() (<-chan api.Event, func())
 	Health() api.HealthData
@@ -68,6 +69,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
 	mux.HandleFunc("GET /api/settings", s.handleSettings)
 	mux.HandleFunc("POST /api/settings", s.handleSetSettings)
+	mux.HandleFunc("GET /api/logs", s.handleLogs)
+	mux.HandleFunc("DELETE /api/logs", s.handleDeleteLogs)
 	mux.HandleFunc("GET /events", s.handleEvents)
 	mux.HandleFunc("/", s.handleStatic)
 	return s.withMiddleware(mux)
@@ -104,6 +107,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleSeek(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.Snapshot().Seek))
+}
+
+func (s *Server) handleLogs(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, api.OK(s.app.Snapshot().Logs))
 }
 
 func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +169,10 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettingsPatch(req)))
 }
 
+func (s *Server) handleDeleteLogs(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, api.OK(s.app.ClearLogs()))
+}
+
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -181,6 +192,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	writeSSE(w, api.Event{Type: api.EventCurrentChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Current})
 	writeSSE(w, api.Event{Type: api.EventSeekChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Seek})
 	writeSSE(w, api.Event{Type: api.EventSettingsChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Settings})
+	writeSSE(w, api.Event{Type: api.EventLogsChanged, EventID: snap.EventID, Version: snap.Version, Data: snap.Logs})
 	flusher.Flush()
 
 	ticker := time.NewTicker(30 * time.Second)

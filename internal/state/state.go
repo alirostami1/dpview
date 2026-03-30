@@ -13,6 +13,7 @@ type Snapshot struct {
 	Current  api.CurrentData
 	Seek     api.SeekData
 	Settings api.SettingsData
+	Logs     api.LogData
 	Version  int64
 	EventID  int64
 }
@@ -28,8 +29,11 @@ type Store struct {
 	origin   string
 	seek     api.SeekData
 	settings api.Settings
+	logs     []api.LogEntry
 	subs     map[chan api.Event]struct{}
 }
+
+const maxLogEntries = 100
 
 func NewStore() *Store {
 	return &Store{
@@ -58,6 +62,7 @@ func (s *Store) Snapshot() Snapshot {
 		Current:  s.currentDataLocked(),
 		Seek:     s.seekDataLocked(),
 		Settings: s.settingsDataLocked(),
+		Logs:     s.logsDataLocked(),
 		Version:  s.version,
 		EventID:  s.eventID,
 	}
@@ -176,6 +181,32 @@ func (s *Store) SetSeek(seek api.SeekData, origin string) api.SeekData {
 	return data
 }
 
+func (s *Store) AppendLog(entry api.LogEntry) api.LogData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.version++
+	if entry.Timestamp.IsZero() {
+		entry.Timestamp = time.Now().UTC()
+	}
+	s.logs = append([]api.LogEntry{entry}, s.logs...)
+	if len(s.logs) > maxLogEntries {
+		s.logs = s.logs[:maxLogEntries]
+	}
+	data := s.logsDataLocked()
+	s.emitLocked(api.EventLogsChanged, data)
+	return data
+}
+
+func (s *Store) ClearLogs() api.LogData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.version++
+	s.logs = nil
+	data := s.logsDataLocked()
+	s.emitLocked(api.EventLogsChanged, data)
+	return data
+}
+
 func (s *Store) ClearSeek(origin string) api.SeekData {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -227,6 +258,15 @@ func (s *Store) settingsDataLocked() api.SettingsData {
 		Settings: s.settings,
 		Version:  s.version,
 		EventID:  s.eventID,
+	}
+}
+
+func (s *Store) logsDataLocked() api.LogData {
+	entries := append([]api.LogEntry{}, s.logs...)
+	return api.LogData{
+		Entries: entries,
+		Version: s.version,
+		EventID: s.eventID,
 	}
 }
 

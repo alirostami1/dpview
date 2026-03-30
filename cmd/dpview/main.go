@@ -71,6 +71,7 @@ func main() {
 
 	watcher, err := application.StartWatcher()
 	if err != nil {
+		application.RecordRuntimeError("startup", "watcher disabled", err)
 		log.Printf("watcher disabled: %v", err)
 	} else {
 		defer watcher.Close()
@@ -92,6 +93,7 @@ func main() {
 	}
 	if cfg.OpenBrowser {
 		if err := app.OpenBrowser("http://" + cfg.Address()); err != nil {
+			application.RecordRuntimeError("startup", "open browser failed", err)
 			log.Printf("open browser: %v", err)
 		}
 	}
@@ -102,6 +104,7 @@ func main() {
 	}
 
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		application.RecordRuntimeError("server", "server error", err)
 		log.Printf("server error: %v", err)
 		os.Exit(1)
 	}

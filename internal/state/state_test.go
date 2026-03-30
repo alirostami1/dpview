@@ -64,3 +64,31 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 		t.Fatalf("preview theme = %q", data.Settings.PreviewTheme)
 	}
 }
+
+func TestAppendAndClearLogs(t *testing.T) {
+	store := NewStore()
+
+	for i := 0; i < maxLogEntries+5; i++ {
+		store.AppendLog(api.LogEntry{
+			Level:   "error",
+			Source:  "test",
+			Code:    "boom",
+			Message: "entry",
+			Detail:  "detail",
+			Context: "ctx",
+		})
+	}
+
+	snap := store.Snapshot()
+	if len(snap.Logs.Entries) != maxLogEntries {
+		t.Fatalf("log entry count = %d", len(snap.Logs.Entries))
+	}
+	if snap.Logs.Entries[0].Timestamp.IsZero() {
+		t.Fatalf("expected timestamp to be populated: %+v", snap.Logs.Entries[0])
+	}
+
+	cleared := store.ClearLogs()
+	if len(cleared.Entries) != 0 {
+		t.Fatalf("expected logs to be cleared: %+v", cleared)
+	}
+}

@@ -41,6 +41,10 @@ func (s *Service) Subscribe() (<-chan api.Event, func()) {
 	return s.store.Subscribe()
 }
 
+func (s *Service) ClearLogs() api.LogData {
+	return s.store.ClearLogs()
+}
+
 func (s *Service) Health() api.HealthData {
 	snap := s.store.Snapshot()
 	return api.HealthData{
@@ -55,14 +59,20 @@ func (s *Service) Health() api.HealthData {
 
 func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.CurrentData, int, *api.Error) {
 	if origin == "editor" && !s.store.Snapshot().Settings.Settings.EditorFileSyncEnabled {
-		return api.CurrentData{}, http.StatusConflict, api.NewError("editor_file_sync_disabled", "Editor-driven file sync is disabled", "")
+		err := api.NewError("editor_file_sync_disabled", "Editor-driven file sync is disabled", "")
+		s.logAPIError("current", err, rel, "editor file sync disabled")
+		return api.CurrentData{}, http.StatusConflict, err
 	}
 	abs, info, apiErr, status := s.resolvePath(rel)
 	if apiErr != nil {
+		s.logAPIError("current", apiErr, rel, "resolve current path")
 		return api.CurrentData{}, status, apiErr
 	}
 	s.store.PublishRenderStarted(&info)
 	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	if preview.Error != nil {
+		s.logPreviewError("render", info.Path, preview.Error)
+	}
 	selectionChanged := s.currentPath() != info.Path
 	if origin == "" {
 		origin = "api"
@@ -73,18 +83,25 @@ func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.Curre
 func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error) {
 	current := s.store.Snapshot().Current.File
 	if current == nil {
-		return api.CurrentData{}, http.StatusBadRequest, api.NewError("no_current_file", "No current file selected", "")
+		err := api.NewError("no_current_file", "No current file selected", "")
+		s.logAPIError("refresh", err, "", "refresh with no current file")
+		return api.CurrentData{}, http.StatusBadRequest, err
 	}
 	abs, info, apiErr, status := s.resolvePath(current.Path)
 	if apiErr != nil {
 		if apiErr.Code == "file_not_found" {
+			s.logAPIError("refresh", apiErr, current.Path, "refresh target missing")
 			cleared := s.store.ClearCurrent(api.NewError("file_not_found", "Current file no longer exists", current.Path), "watch")
 			return cleared, status, apiErr
 		}
+		s.logAPIError("refresh", apiErr, current.Path, "refresh resolve failed")
 		return api.CurrentData{}, status, apiErr
 	}
 	s.store.PublishRenderStarted(&info)
 	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	if preview.Error != nil {
+		s.logPreviewError("render", info.Path, preview.Error)
+	}
 	return s.store.SetCurrent(&info, preview, "refresh", false), http.StatusOK, nil
 }
 
@@ -94,20 +111,27 @@ func (s *Service) ClearCurrent() api.CurrentData {
 
 func (s *Service) SetSeek(_ context.Context, seek api.SeekData) (api.SeekData, int, *api.Error) {
 	if !s.store.Snapshot().Settings.Settings.SeekEnabled {
-		return api.SeekData{}, http.StatusConflict, api.NewError("seek_disabled", "Seek synchronization is disabled", "")
+		err := api.NewError("seek_disabled", "Seek synchronization is disabled", "")
+		s.logAPIError("seek", err, seek.Path, "seek disabled")
+		return api.SeekData{}, http.StatusConflict, err
 	}
 	rel := strings.TrimSpace(seek.Path)
 	if rel == "" {
-		return api.SeekData{}, http.StatusBadRequest, api.NewError("invalid_path", "Path is required", "")
+		err := api.NewError("invalid_path", "Path is required", "")
+		s.logAPIError("seek", err, rel, "seek missing path")
+		return api.SeekData{}, http.StatusBadRequest, err
 	}
 	_, info, apiErr, status := s.resolvePath(rel)
 	if apiErr != nil {
+		s.logAPIError("seek", apiErr, rel, "seek resolve failed")
 		return api.SeekData{}, status, apiErr
 	}
 
 	current := s.store.Snapshot().Current.File
 	if current == nil || current.Path != info.Path {
-		return api.SeekData{}, http.StatusConflict, api.NewError("current_mismatch", "Seek path must match the current file", info.Path)
+		err := api.NewError("current_mismatch", "Seek path must match the current file", info.Path)
+		s.logAPIError("seek", err, info.Path, "seek/current mismatch")
+		return api.SeekData{}, http.StatusConflict, err
 	}
 
 	return s.store.SetSeek(normalizeSeek(info.Path, seek), "api"), http.StatusOK, nil
@@ -160,15 +184,18 @@ func (s *Service) HandleWatchEvents(events []watch.Event) {
 
 	if treeDirty {
 		if err := s.Rescan(); err != nil {
+			s.logInternalError("watcher", "watch rescan failed", err, "")
 			return
 		}
 	}
 	if current != nil {
 		if _, _, err := s.files.Resolve(current.Path); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
+				s.logInternalError("watcher", "current file removed", err, current.Path)
 				s.store.ClearCurrent(api.NewError("file_not_found", "Current file no longer exists", current.Path), "watch")
 				return
 			}
+			s.logInternalError("watcher", "failed to resolve current file during watch", err, current.Path)
 		}
 	}
 	if currentDirty && !snap.Settings.Settings.AutoRefreshPaused {
@@ -183,6 +210,10 @@ func (s *Service) StartWatcher() (*watch.Watcher, error) {
 	}
 	s.watcherEnabled.Store(true)
 	return watcher, nil
+}
+
+func (s *Service) RecordRuntimeError(source, message string, err error) {
+	s.logInternalError(source, message, err, "")
 }
 
 func (s *Service) currentPath() string {
@@ -246,6 +277,41 @@ func normalizeSeek(path string, seek api.SeekData) api.SeekData {
 		BottomLine: bottom,
 		FocusLine:  focus,
 	}
+}
+
+func (s *Service) logAPIError(source string, err *api.Error, path string, context string) {
+	if err == nil {
+		return
+	}
+	s.store.AppendLog(api.LogEntry{
+		Timestamp: time.Now().UTC(),
+		Level:     "error",
+		Source:    source,
+		Code:      err.Code,
+		Message:   err.Message,
+		Detail:    err.Detail,
+		Path:      path,
+		Context:   context,
+	})
+}
+
+func (s *Service) logPreviewError(source, path string, err *api.Error) {
+	s.logAPIError(source, err, path, "preview render failed")
+}
+
+func (s *Service) logInternalError(source, message string, err error, path string) {
+	if err == nil {
+		return
+	}
+	s.store.AppendLog(api.LogEntry{
+		Timestamp: time.Now().UTC(),
+		Level:     "error",
+		Source:    source,
+		Code:      "internal_error",
+		Message:   message,
+		Detail:    err.Error(),
+		Path:      path,
+	})
 }
 
 func clampSeekValue(v int) int {

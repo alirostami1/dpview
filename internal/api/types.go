@@ -6,6 +6,8 @@ import (
 	"codeberg.org/aros/dpview/internal/files"
 )
 
+//go:generate go run ../../cmd/gen-web-contracts
+
 const (
 	EventFilesChanged    = "files_changed"
 	EventCurrentChanged  = "current_changed"
@@ -14,6 +16,7 @@ const (
 	EventRenderFailed    = "render_failed"
 	EventSeekChanged     = "seek_changed"
 	EventSettingsChanged = "settings_changed"
+	EventLogsChanged     = "logs_changed"
 )
 
 type Envelope struct {
@@ -118,6 +121,23 @@ type SettingsData struct {
 	Settings Settings `json:"settings"`
 	Version  int64    `json:"version"`
 	EventID  int64    `json:"event_id"`
+}
+
+type LogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	Level     string    `json:"level"`
+	Source    string    `json:"source"`
+	Code      string    `json:"code"`
+	Message   string    `json:"message"`
+	Detail    string    `json:"detail,omitempty"`
+	Path      string    `json:"path,omitempty"`
+	Context   string    `json:"context,omitempty"`
+}
+
+type LogData struct {
+	Entries []LogEntry `json:"entries"`
+	Version int64      `json:"version"`
+	EventID int64      `json:"event_id"`
 }
 
 type RendererStatus struct {

@@ -1,12 +1,26 @@
 import type { CurrentData, Preview, SeekData, Settings } from "./types";
 
+/** Candidate preview element used for Markdown source-line seeking. */
 interface MarkdownSeekCandidate {
+  /** DOM node carrying source line metadata. */
   node: HTMLElement;
+  /** First source line covered by the node. */
   start: number;
+  /** Last source line covered by the node. */
   end: number;
+  /** DOM depth used as a specificity tie-breaker. */
   depth: number;
 }
 
+/**
+ * Applies editor seek state to the current preview when possible.
+ *
+ * @param fileViewEl Scroll container for the current file view.
+ * @param previewEl Root preview element.
+ * @param current Current file/preview snapshot.
+ * @param seek Current seek position snapshot.
+ * @param settings Active settings snapshot.
+ */
 export function applyPreviewSeek(
   fileViewEl: HTMLElement,
   previewEl: HTMLElement,
@@ -35,6 +49,13 @@ export function applyPreviewSeek(
   }
 }
 
+/**
+ * Aligns a Markdown preview to the best matching source line block.
+ *
+ * @param fileViewEl Scroll container for the preview.
+ * @param previewEl Root preview element.
+ * @param seek Current seek position snapshot.
+ */
 function applyMarkdownSeek(
   fileViewEl: HTMLElement,
   previewEl: HTMLElement,
@@ -54,6 +75,8 @@ function applyMarkdownSeek(
   );
 
   if (containing.length) {
+    // Prefer the narrowest matching block so large containers do not win over the
+    // specific paragraph/list item/code block the editor is currently focused on.
     const target = containing.reduce<MarkdownSeekCandidate | null>((best, candidate) => {
       if (!best) {
         return candidate;
@@ -90,6 +113,13 @@ function applyMarkdownSeek(
   scrollPreviewToLine(fileViewEl, before || after, focusLine);
 }
 
+/**
+ * Aligns a Typst preview proportionally using source line progress.
+ *
+ * @param fileViewEl Scroll container for the preview.
+ * @param seek Current seek position snapshot.
+ * @param preview Current preview data.
+ */
 function applyTypstSeek(
   fileViewEl: HTMLElement,
   seek: SeekData,
@@ -109,6 +139,12 @@ function applyTypstSeek(
   fileViewEl.scrollTo({ top: progress * scrollRange, behavior: "auto" });
 }
 
+/**
+ * Collects preview elements that expose source line metadata.
+ *
+ * @param previewEl Root preview element.
+ * @returns Ordered list of candidate elements for seek calculations.
+ */
 function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCandidate[] {
   return [...previewEl.querySelectorAll<HTMLElement>("[data-source-start-line][data-source-end-line]")]
     .map((node) => {
@@ -121,12 +157,20 @@ function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCand
         node,
         start,
         end,
+        // Deeper nodes are usually more specific matches when multiple elements
+        // cover the same line span.
         depth: countNodeDepth(node),
       };
     })
     .filter((candidate): candidate is MarkdownSeekCandidate => candidate !== null);
 }
 
+/**
+ * Counts how deep a node is in the preview DOM tree.
+ *
+ * @param node Node to inspect.
+ * @returns Parent depth, used to prefer more specific matches.
+ */
 function countNodeDepth(node: HTMLElement): number {
   let depth = 0;
   for (let current = node.parentElement; current; current = current.parentElement) {
@@ -135,6 +179,13 @@ function countNodeDepth(node: HTMLElement): number {
   return depth;
 }
 
+/**
+ * Scrolls the preview so a specific source line lands at the target reading position.
+ *
+ * @param fileViewEl Scroll container for the preview.
+ * @param candidate Best matching preview node.
+ * @param line Source line to align.
+ */
 function scrollPreviewToLine(
   fileViewEl: HTMLElement,
   candidate: MarkdownSeekCandidate | null,
@@ -157,6 +208,15 @@ function scrollPreviewToLine(
   });
 }
 
+/**
+ * Interpolates between two neighboring Markdown blocks when the target line falls
+ * between them rather than inside either block.
+ *
+ * @param fileViewEl Scroll container for the preview.
+ * @param before Closest block before the target line.
+ * @param after Closest block after the target line.
+ * @param line Source line to align.
+ */
 function scrollPreviewBetweenCandidates(
   fileViewEl: HTMLElement,
   before: MarkdownSeekCandidate,
