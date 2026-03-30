@@ -12,6 +12,13 @@ Theme settings are passed to DPview as startup flags.
 - a `dpview` binary on `PATH`, a repo-local build such as `build/dpview` or `build/main`, or this repo available for `go run ./cmd/dpview`
 - `typst` installed if you want Typst previews
 
+The plugin resolves the DPview command in this order:
+
+1. `binary` from `require("dpview").setup(...)` when it points to an executable
+2. `dpview` found on `PATH`
+3. `build/dpview` or `build/main` under the directory where Neovim was started
+4. `go run ./cmd/dpview` when `go_run_fallback = true` and Neovim was started in this repo
+
 ## Installation
 
 ### lazy.nvim
@@ -127,37 +134,38 @@ Options:
 - `auto_start`: when false, the plugin never starts DPview automatically
 - `auto_open_browser`: when true, open the browser once after the plugin starts DPview
 - `notify`: enable or disable plugin notifications
-- `open_cmd`: optional Lua function that receives the DPview URL
+- `open_cmd`: optional Lua function that receives the DPview URL; used by `:DPviewOpen` and `auto_open_browser`
 
 ## Commands
 
-- `:DPviewStart`
-- `:DPviewStop`
-- `:DPviewOpen`
-- `:DPviewSync`
-- `:DPviewStatus`
-- `:DPviewSeekEnable`
-- `:DPviewSeekDisable`
-- `:DPviewSeekToggle`
-- `:DPviewFileSyncEnable`
-- `:DPviewFileSyncDisable`
-- `:DPviewFileSyncToggle`
-- `:DPviewLivePreviewEnable`
-- `:DPviewLivePreviewDisable`
-- `:DPviewLivePreviewToggle`
+- `:DPviewStart`: start DPview and push the current supported buffer
+- `:DPviewStop`: stop the DPview process started by the plugin
+- `:DPviewOpen`: open the current DPview URL; starts DPview first if needed
+- `:DPviewSync`: push the current supported buffer even when editor file sync is disabled
+- `:DPviewStatus`: show the startup root, URL, launch method, and current plugin toggles
+- `:DPviewSeekEnable`, `:DPviewSeekDisable`, `:DPviewSeekToggle`: control editor-to-preview seeking
+- `:DPviewFileSyncEnable`, `:DPviewFileSyncDisable`, `:DPviewFileSyncToggle`: control active-buffer to preview-file following
+- `:DPviewLivePreviewEnable`, `:DPviewLivePreviewDisable`, `:DPviewLivePreviewToggle`: control unsaved buffer preview updates
 
 ## Notes
 
 - The DPview root is the directory where Neovim was started.
 - Supported files are `.md`, `.markdown`, `.typ`, and `.typst`.
+- Only files inside that startup root can be synced to DPview.
+- Unnamed buffers, special buffers, and files outside the startup root are ignored.
 - Switching to unsupported buffers leaves the last DPview preview visible.
+- `BufEnter` syncs the current file, sends an immediate live-preview update when enabled, and updates seek state.
+- `TextChanged` and `TextChangedI` drive live preview with `live_buffer_preview_debounce_ms`.
+- `CursorMoved`, `CursorMovedI`, and `WinScrolled` drive seek updates with `cursor_seek_debounce_ms`.
+- `auto_start = false` prevents automatic startup from those events, but `:DPviewStart`, `:DPviewOpen`, and `:DPviewSync` can still start or sync manually.
 - Theme can be controlled from Neovim config through `theme` and `preview_theme`.
 - File following can be controlled from Neovim config through `editor_file_sync` and at runtime through `:DPviewFileSyncEnable`, `:DPviewFileSyncDisable`, and `:DPviewFileSyncToggle`.
 - Seeking can be controlled from Neovim config through `cursor_seek` and at runtime through `:DPviewSeekEnable`, `:DPviewSeekDisable`, and `:DPviewSeekToggle`.
+- Live preview can be controlled from Neovim config through `live_buffer_preview` and at runtime through `:DPviewLivePreviewEnable`, `:DPviewLivePreviewDisable`, and `:DPviewLivePreviewToggle`.
 - Typst preview theming can be disabled from Neovim config through `typst_preview_theme`.
 - Markdown front matter behavior can be controlled from Neovim config through `markdown_frontmatter_visible`, `markdown_frontmatter_expanded`, and `markdown_frontmatter_title`.
 - Sidebar state can be controlled from Neovim config through `sidebar_collapsed`.
 - Sidebar, sync, and theme values are passed to DPview at startup with `--sidebar-closed`,
-  `--editor-file-sync`, `--seek-enabled`, `--theme`, `--preview-theme`, `--typst-preview-theme`,
-  `--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
-  `--markdown-frontmatter-title`.
+  `--editor-file-sync`, `--live-buffer-preview`, `--seek-enabled`, `--theme`,
+  `--preview-theme`, `--typst-preview-theme`, `--markdown-frontmatter-visible`,
+  `--markdown-frontmatter-expanded`, and `--markdown-frontmatter-title`.

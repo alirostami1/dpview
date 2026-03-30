@@ -1,0 +1,28 @@
+*dpview-commands.txt*  Commands for dpview.nvim
+
+==============================================================================
+COMMANDS                                                 *dpview-command-list*
+
+- `:DPviewStart` start DPview and sync the current supported buffer
+- `:DPviewStop` stop the DPview process started by the plugin
+- `:DPviewOpen` open the current DPview URL in the browser and start DPview
+  first if needed
+- `:DPviewSync` manually sync the current supported buffer even when
+  `editor_file_sync` is disabled
+- `:DPviewStatus` show plugin status, including launch method and active
+  toggles
+- `:DPviewSeekEnable` enable seeking updates in the plugin and preview
+- `:DPviewSeekDisable` disable seeking updates in the plugin and preview
+- `:DPviewSeekToggle` toggle seeking updates in the plugin and preview
+- `:DPviewFileSyncEnable` enable editor-driven file following in the plugin
+  and preview
+- `:DPviewFileSyncDisable` disable editor-driven file following in the plugin
+  and preview
+- `:DPviewFileSyncToggle` toggle editor-driven file following in the plugin
+  and preview
+- `:DPviewLivePreviewEnable` enable unsaved live buffer preview updates
+- `:DPviewLivePreviewDisable` disable unsaved live buffer preview updates
+- `:DPviewLivePreviewToggle` toggle unsaved live buffer preview updates
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:

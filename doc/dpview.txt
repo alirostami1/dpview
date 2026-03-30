@@ -5,8 +5,9 @@ CONTENTS                                                    *dpview-contents*
 
 1. Introduction.............................................|dpview-intro|
 2. Installation.............................................|dpview-install|
-3. Setup....................................................|dpview-setup|
-4. Commands.................................................|dpview-commands|
+3. Setup..............................................|dpview-setup-overview|
+4. Behavior.................................................|dpview-behavior|
+5. Commands.................................................|dpview-commands|
 
 ==============================================================================
 1. Introduction                                                *dpview-intro*
@@ -21,6 +22,13 @@ Supported file types:
 
 Switching to unsupported buffers leaves the last DPview preview visible.
 
+See also:
+
+- |dpview-install|
+- |dpview-setup-overview|
+- |dpview-behavior|
+- |dpview-commands|
+
 ==============================================================================
 2. Installation                                              *dpview-install*
 
@@ -29,87 +37,38 @@ Install this repository as a Neovim plugin with your plugin manager, then call
     require("dpview").setup()
 <
 
-==============================================================================
-3. Setup                                                        *dpview-setup*
+The plugin looks for DPview in this order:
 
->
-    require("dpview").setup({
-      binary = nil,
-      go_run_fallback = true,
-      host = "127.0.0.1",
-      port = nil,
-      sidebar_collapsed = false,
-      editor_file_sync = true,
-      theme = "dark",
-      preview_theme = "github",
-      cursor_seek = true,
-      cursor_seek_debounce_ms = 80,
-      typst_preview_theme = true,
-      markdown_frontmatter_visible = true,
-      markdown_frontmatter_expanded = true,
-      markdown_frontmatter_title = true,
-      auto_start = true,
-      auto_open_browser = false,
-      notify = true,
-    })
-<
+1. `binary` from your setup config, when it is executable
+2. `dpview` on `PATH`
+3. `build/dpview` or `build/main` under Neovim's startup directory
+4. `go run ./cmd/dpview` when `go_run_fallback` is enabled and Neovim was
+   started in this repository
 
-Options:
-
-- `binary`: explicit path to the `dpview` executable
-- `go_run_fallback`: allow `go run ./cmd/dpview` when this repo is the startup root
-- `host`: bind address for the local server
-- `port`: fixed port, or `nil` to auto-pick a free localhost port
-- `sidebar_collapsed`: start DPview with the sidebar collapsed
-- `editor_file_sync`: allow Neovim to switch the DPview preview to the active
-  supported buffer
-- `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current
-  `background`
-- `preview_theme`: DPview preview theme id such as `default`, `github`,
-  `notion`, or `paper`
-- `cursor_seek`: enable editor-to-preview seeking updates
-- `cursor_seek_debounce_ms`: debounce delay for cursor and viewport seek sync
-- `live_buffer_preview`: enable unsaved buffer preview updates while typing
-- `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer
-  preview update; defaults to `200`
-- `typst_preview_theme`: when false, DPview renders Typst sources directly
-  without injecting preview theme tokens
-- `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown
-  previews
-- `markdown_frontmatter_expanded`: start Markdown front matter panels expanded
-- `markdown_frontmatter_title`: use front matter `title` as an H1 when the
-  document has no H1
-- `auto_start`: when false, the plugin never starts DPview automatically
-- `auto_open_browser`: when true, open the browser once after the plugin starts
-  a new DPview process
-- `notify`: enable or disable plugin notifications
-- `open_cmd`: optional Lua function that receives the DPview URL
-
-Sidebar, sync, and theme values are passed to DPview at startup with the
-matching CLI flags, including `--editor-file-sync`, `--seek-enabled`,
-`--typst-preview-theme`, `--markdown-frontmatter-visible`,
-`--markdown-frontmatter-expanded`, and `--markdown-frontmatter-title`.
+For setup options and examples, see |dpview-setup-overview|.
 
 ==============================================================================
-4. Commands                                                  *dpview-commands*
+3. Setup                                                *dpview-setup-overview*
 
-- `:DPviewStart` start DPview and sync the current supported buffer
-- `:DPviewStop` stop the DPview process started by the plugin
-- `:DPviewOpen` open the current DPview URL in the browser
-- `:DPviewSync` manually sync the current supported buffer
-- `:DPviewStatus` show plugin status
-- `:DPviewSeekEnable` enable seeking updates in the plugin and preview
-- `:DPviewSeekDisable` disable seeking updates in the plugin and preview
-- `:DPviewSeekToggle` toggle seeking updates in the plugin and preview
-- `:DPviewFileSyncEnable` enable editor-driven file following in the plugin and
-  preview
-- `:DPviewFileSyncDisable` disable editor-driven file following in the plugin
-  and preview
-- `:DPviewFileSyncToggle` toggle editor-driven file following in the plugin and
-  preview
-- `:DPviewLivePreviewEnable` enable unsaved live buffer preview updates
-- `:DPviewLivePreviewDisable` disable unsaved live buffer preview updates
-- `:DPviewLivePreviewToggle` toggle unsaved live buffer preview updates
+The setup reference lives in a separate help file:
+
+- |dpview-config|
+- |dpview-config-options|
+- |dpview-config-behavior|
+
+==============================================================================
+4. Behavior                                                  *dpview-behavior*
+
+Runtime behavior and autocommand-driven sync details live in:
+
+- |dpview-config-behavior|
+
+==============================================================================
+5. Commands                                                  *dpview-commands*
+
+Command reference lives in:
+
+- |dpview-command-list|
 
 ==============================================================================
 vim:tw=78:ts=8:noet:ft=help:norl:

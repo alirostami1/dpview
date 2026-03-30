@@ -64,4 +64,4 @@ where Neovim was launched and sync the current Markdown or Typst buffer.
 Installation examples and plugin-specific docs live in
 [`lua/dpview/README.md`](lua/dpview/README.md).
 
-See [`doc/dpview.txt`](doc/dpview.txt) for the full option list.
+See [`doc/dpview.txt`](doc/dpview.txt) or `:help dpview` for the Neovim help files.

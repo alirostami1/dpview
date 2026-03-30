@@ -1,0 +1,97 @@
+*dpview-config.txt*  Setup and configuration for dpview.nvim
+
+==============================================================================
+CONTENTS                                              *dpview-config-contents*
+
+1. Setup....................................................|dpview-config|
+2. Options............................................|dpview-config-options|
+3. Behavior..........................................|dpview-config-behavior|
+
+==============================================================================
+1. Setup                                                      *dpview-config*
+
+>
+    require("dpview").setup({
+      binary = nil,
+      go_run_fallback = true,
+      host = "127.0.0.1",
+      port = nil,
+      sidebar_collapsed = false,
+      editor_file_sync = true,
+      live_buffer_preview = false,
+      theme = "dark",
+      preview_theme = "github",
+      cursor_seek = true,
+      cursor_seek_debounce_ms = 80,
+      live_buffer_preview_debounce_ms = 200,
+      typst_preview_theme = true,
+      markdown_frontmatter_visible = true,
+      markdown_frontmatter_expanded = true,
+      markdown_frontmatter_title = true,
+      auto_start = true,
+      auto_open_browser = false,
+      notify = true,
+      open_cmd = nil,
+    })
+<
+
+==============================================================================
+2. Options                                              *dpview-config-options*
+
+- `binary`: explicit path to the `dpview` executable
+- `go_run_fallback`: allow `go run ./cmd/dpview` when this repo is the startup
+  root
+- `host`: bind address for the local server
+- `port`: fixed port, or `nil` to auto-pick a free localhost port
+- `sidebar_collapsed`: start DPview with the sidebar collapsed
+- `editor_file_sync`: allow Neovim to switch the DPview preview to the active
+  supported buffer
+- `live_buffer_preview`: enable unsaved buffer preview updates while typing
+- `theme`: DPview app theme, `light` or `dark`; defaults to Neovim's current
+  `background`
+- `preview_theme`: DPview preview theme id such as `default`, `github`,
+  `notion`, or `paper`
+- `cursor_seek`: enable editor-to-preview seeking updates
+- `cursor_seek_debounce_ms`: debounce delay for cursor and viewport seek sync
+- `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer
+  preview update; defaults to `200`
+- `typst_preview_theme`: when false, DPview renders Typst sources directly
+  without injecting preview theme tokens
+- `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown
+  previews
+- `markdown_frontmatter_expanded`: start Markdown front matter panels expanded
+- `markdown_frontmatter_title`: use front matter `title` as an H1 when the
+  document has no H1
+- `auto_start`: when false, the plugin never starts DPview automatically
+- `auto_open_browser`: when true, open the browser once after the plugin
+  starts a new DPview process
+- `notify`: enable or disable plugin notifications
+- `open_cmd`: optional Lua function that receives the DPview URL; used by
+  `:DPviewOpen` and `auto_open_browser`
+
+Sidebar, sync, and theme values are passed to DPview at startup with the
+matching CLI flags, including `--editor-file-sync`, `--live-buffer-preview`,
+`--seek-enabled`, `--typst-preview-theme`,
+`--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
+`--markdown-frontmatter-title`.
+
+==============================================================================
+3. Behavior                                            *dpview-config-behavior*
+
+- DPview runs against the directory where Neovim was started.
+- Only files inside that startup root can be previewed through the plugin.
+- Supported files are `.md`, `.markdown`, `.typ`, and `.typst`.
+- Unnamed buffers, special buffers, unsupported files, and files outside the
+  startup root are ignored.
+- `BufEnter` syncs the current file, sends an immediate live-preview update
+  when enabled, and updates seek state.
+- `TextChanged` and `TextChangedI` send unsaved buffer content with
+  `live_buffer_preview_debounce_ms`.
+- `CursorMoved`, `CursorMovedI`, and `WinScrolled` send seek updates with
+  `cursor_seek_debounce_ms`.
+- `auto_start = false` disables automatic startup from those events, but
+  `:DPviewStart`, `:DPviewOpen`, and `:DPviewSync` still work manually.
+- Switching to unsupported buffers leaves the last preview visible in DPview.
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
