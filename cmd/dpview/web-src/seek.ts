@@ -1,7 +1,28 @@
-export function applyPreviewSeek(fileViewEl, previewEl, current, seek, settings) {
+import type { CurrentData, Preview, SeekData, Settings } from "./types";
+
+interface MarkdownSeekCandidate {
+  node: HTMLElement;
+  start: number;
+  end: number;
+  depth: number;
+}
+
+export function applyPreviewSeek(
+  fileViewEl: HTMLElement,
+  previewEl: HTMLElement,
+  current: CurrentData | null,
+  seek: SeekData | null,
+  settings: Settings,
+): void {
   const file = current?.file;
   const preview = current?.preview;
-  if (!settings?.seek_enabled || !seek || !file || seek.path !== file.path || preview?.status !== "ready") {
+  if (
+    !settings.seek_enabled ||
+    !seek ||
+    !file ||
+    seek.path !== file.path ||
+    preview?.status !== "ready"
+  ) {
     return;
   }
 
@@ -14,7 +35,11 @@ export function applyPreviewSeek(fileViewEl, previewEl, current, seek, settings)
   }
 }
 
-function applyMarkdownSeek(fileViewEl, previewEl, seek) {
+function applyMarkdownSeek(
+  fileViewEl: HTMLElement,
+  previewEl: HTMLElement,
+  seek: SeekData,
+): void {
   const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
   if (!focusLine) {
     return;
@@ -24,12 +49,12 @@ function applyMarkdownSeek(fileViewEl, previewEl, seek) {
     return;
   }
 
-  const containing = candidates.filter((candidate) => (
-    focusLine >= candidate.start && focusLine <= candidate.end
-  ));
+  const containing = candidates.filter(
+    (candidate) => focusLine >= candidate.start && focusLine <= candidate.end,
+  );
 
   if (containing.length) {
-    const target = containing.reduce((best, candidate) => {
+    const target = containing.reduce<MarkdownSeekCandidate | null>((best, candidate) => {
       if (!best) {
         return candidate;
       }
@@ -46,10 +71,16 @@ function applyMarkdownSeek(fileViewEl, previewEl, seek) {
 
   const before = candidates
     .filter((candidate) => candidate.end < focusLine)
-    .reduce((best, candidate) => (!best || candidate.end > best.end ? candidate : best), null);
+    .reduce<MarkdownSeekCandidate | null>(
+      (best, candidate) => (!best || candidate.end > best.end ? candidate : best),
+      null,
+    );
   const after = candidates
     .filter((candidate) => candidate.start > focusLine)
-    .reduce((best, candidate) => (!best || candidate.start < best.start ? candidate : best), null);
+    .reduce<MarkdownSeekCandidate | null>(
+      (best, candidate) => (!best || candidate.start < best.start ? candidate : best),
+      null,
+    );
 
   if (before && after) {
     scrollPreviewBetweenCandidates(fileViewEl, before, after, focusLine);
@@ -59,9 +90,13 @@ function applyMarkdownSeek(fileViewEl, previewEl, seek) {
   scrollPreviewToLine(fileViewEl, before || after, focusLine);
 }
 
-function applyTypstSeek(fileViewEl, seek, preview) {
+function applyTypstSeek(
+  fileViewEl: HTMLElement,
+  seek: SeekData,
+  preview: Preview,
+): void {
   const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
-  const totalLines = Number(preview?.source_line_count || 0);
+  const totalLines = Number(preview.source_line_count || 0);
   if (!focusLine || !totalLines) {
     return;
   }
@@ -69,12 +104,13 @@ function applyTypstSeek(fileViewEl, seek, preview) {
   if (scrollRange <= 0) {
     return;
   }
-  const progress = totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
+  const progress =
+    totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
   fileViewEl.scrollTo({ top: progress * scrollRange, behavior: "auto" });
 }
 
-function collectMarkdownSeekCandidates(previewEl) {
-  return [...previewEl.querySelectorAll("[data-source-start-line][data-source-end-line]")]
+function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCandidate[] {
+  return [...previewEl.querySelectorAll<HTMLElement>("[data-source-start-line][data-source-end-line]")]
     .map((node) => {
       const start = Number(node.dataset.sourceStartLine || 0);
       const end = Number(node.dataset.sourceEndLine || start);
@@ -88,10 +124,10 @@ function collectMarkdownSeekCandidates(previewEl) {
         depth: countNodeDepth(node),
       };
     })
-    .filter(Boolean);
+    .filter((candidate): candidate is MarkdownSeekCandidate => candidate !== null);
 }
 
-function countNodeDepth(node) {
+function countNodeDepth(node: HTMLElement): number {
   let depth = 0;
   for (let current = node.parentElement; current; current = current.parentElement) {
     depth += 1;
@@ -99,7 +135,11 @@ function countNodeDepth(node) {
   return depth;
 }
 
-function scrollPreviewToLine(fileViewEl, candidate, line) {
+function scrollPreviewToLine(
+  fileViewEl: HTMLElement,
+  candidate: MarkdownSeekCandidate | null,
+  line: number,
+): void {
   if (!candidate) {
     return;
   }
@@ -108,7 +148,8 @@ function scrollPreviewToLine(fileViewEl, candidate, line) {
   const span = Math.max(1, candidate.end - candidate.start);
   const progress = Math.max(0, Math.min(1, (line - candidate.start) / span));
   const targetPoint = nodeRect.top + (nodeRect.height * progress);
-  const targetTop = fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
+  const targetTop =
+    fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
   const maxTop = Math.max(0, fileViewEl.scrollHeight - fileViewEl.clientHeight);
   fileViewEl.scrollTo({
     top: Math.max(0, Math.min(maxTop, targetTop)),
@@ -116,7 +157,12 @@ function scrollPreviewToLine(fileViewEl, candidate, line) {
   });
 }
 
-function scrollPreviewBetweenCandidates(fileViewEl, before, after, line) {
+function scrollPreviewBetweenCandidates(
+  fileViewEl: HTMLElement,
+  before: MarkdownSeekCandidate,
+  after: MarkdownSeekCandidate,
+  line: number,
+): void {
   const containerRect = fileViewEl.getBoundingClientRect();
   const beforeRect = before.node.getBoundingClientRect();
   const afterRect = after.node.getBoundingClientRect();
@@ -125,7 +171,8 @@ function scrollPreviewBetweenCandidates(fileViewEl, before, after, line) {
   const beforePoint = beforeRect.top + beforeRect.height;
   const afterPoint = afterRect.top;
   const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
-  const targetTop = fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
+  const targetTop =
+    fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
   const maxTop = Math.max(0, fileViewEl.scrollHeight - fileViewEl.clientHeight);
   fileViewEl.scrollTo({
     top: Math.max(0, Math.min(maxTop, targetTop)),

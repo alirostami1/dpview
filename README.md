@@ -13,6 +13,7 @@ DPview is a local Go web app for browsing and previewing Markdown and Typst file
 ## Requirements
 
 - Go 1.25+
+- Node.js with npm
 - typst
 
 Markdown previews still work when Typst is unavailable.
@@ -20,13 +21,17 @@ Markdown previews still work when Typst is unavailable.
 ## Build
 
 ```bash
+npm install
 make build
 ```
 
 ## Install
 
 ```bash
-go install codeberg.org/aros/dpview/cmd/dpview@latest
+git clone https://codeberg.org/aros/dpview.git
+cd dpview
+npm install
+make build
 ```
 
 ## Run

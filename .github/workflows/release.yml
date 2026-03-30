@@ -46,6 +46,15 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install web build dependencies
+        run: npm ci
+
       - name: Build release archive
         env:
           CGO_ENABLED: 0
@@ -67,6 +76,8 @@ jobs:
           dist_dir="dist"
           stage_dir="${dist_dir}/dpview_${version_no_v}_${GOOS}_${GOARCH}"
           mkdir -p "$stage_dir"
+
+          npm run build:web
 
           go build \
             -trimpath \

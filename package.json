@@ -1,0 +1,14 @@
+{
+  "name": "dpview",
+  "private": true,
+  "scripts": {
+    "bundle:web": "esbuild cmd/dpview/web-src/app.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=cmd/dpview/web/app.js",
+    "typecheck:web": "tsc --project tsconfig.json --noEmit",
+    "build:web": "npm run typecheck:web && npm run bundle:web",
+    "watch:web": "esbuild cmd/dpview/web-src/app.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=cmd/dpview/web/app.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.4",
+    "typescript": "^6.0.2"
+  }
+}

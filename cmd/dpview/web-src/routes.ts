@@ -1,11 +1,13 @@
-export function encodeAppPath(path) {
+import type { Route } from "./types";
+
+export function encodeAppPath(path: string): string {
   if (!path) {
     return "/";
   }
   return `/${path.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
 }
 
-export function parseRoute(pathname, search = "") {
+export function parseRoute(pathname: string, search = ""): Route {
   const params = new URLSearchParams(search);
   const settingsOpen = params.get("settings") === "open";
   const decodedPath = pathname
@@ -22,6 +24,8 @@ export function parseRoute(pathname, search = "") {
   return { kind: "file", path: decodedPath.join("/") };
 }
 
-export function isSettingsRoute(locationLike = window.location) {
+export function isSettingsRoute(
+  locationLike: Pick<Location, "pathname" | "search"> = window.location,
+): boolean {
   return parseRoute(locationLike.pathname, locationLike.search).kind === "settings";
 }

@@ -1,17 +1,76 @@
-import { applyPreviewSeek } from "./js/seek.js";
-import { encodeAppPath, isSettingsRoute, parseRoute } from "./js/routes.js";
+import { applyPreviewSeek } from "./seek";
+import { encodeAppPath, isSettingsRoute, parseRoute } from "./routes";
+import type {
+  ApiError,
+  ApiResult,
+  CurrentData,
+  FileInfo,
+  FilesData,
+  FrontMatter,
+  HealthData,
+  Route,
+  SeekData,
+  Settings,
+  SettingsData,
+  TreeNode,
+} from "./types";
+
+declare const katex:
+  | {
+      render: (
+        expression: string,
+        element: Element,
+        options: { displayMode: boolean; throwOnError: boolean },
+      ) => void;
+    }
+  | undefined;
+
+declare const renderMathInElement:
+  | ((
+      element: Element,
+      options: {
+        delimiters: Array<{ left: string; right: string; display: boolean }>;
+        throwOnError: boolean;
+      },
+    ) => void)
+  | undefined;
 
 const STORAGE = {
   expanded: "dpview.expanded",
   currentPath: "dpview.currentPath",
   search: "dpview.search",
   theme: "dpview.theme",
-};
+} as const;
+
+interface State {
+  files: FileInfo[];
+  tree: TreeNode[];
+  current: CurrentData | null;
+  settings: Settings;
+  health: HealthData | null;
+  seek: SeekData | null;
+  expanded: Set<string>;
+  search: string;
+  theme: string;
+  previewTheme: string;
+  sidebarCollapsed: boolean;
+  frontMatterExpanded: boolean | null;
+  localSelectionInFlight: string;
+  statusMessage: string;
+  pendingSeekFrame: number;
+}
+
+interface SyncSettingsOptions {
+  rerenderTypst?: boolean;
+  rerenderMarkdown?: boolean;
+}
+
+type Page = "file" | "settings" | "not-found";
 
 const systemThemeMedia =
   window.matchMedia?.("(prefers-color-scheme: dark)") || null;
 
-const state = {
+const state: State = {
   files: [],
   tree: [],
   current: null,
@@ -24,12 +83,12 @@ const state = {
     markdown_frontmatter_visible: true,
     markdown_frontmatter_expanded: true,
     markdown_frontmatter_title: true,
-    theme: "light",
+    theme: "system",
     preview_theme: "default",
   },
   health: null,
   seek: null,
-  expanded: new Set(JSON.parse(localStorage.getItem(STORAGE.expanded) || "[]")),
+  expanded: loadExpandedPaths(),
   search: localStorage.getItem(STORAGE.search) || "",
   theme: localStorage.getItem(STORAGE.theme) || "system",
   previewTheme: "default",
@@ -40,32 +99,39 @@ const state = {
   pendingSeekFrame: 0,
 };
 
-const appEl = document.querySelector(".app");
-const sidebarEl = document.getElementById("sidebar");
-const treeEl = document.getElementById("tree");
-const previewEl = document.getElementById("preview");
-const markdownThemeCSS = document.getElementById("markdown-theme-css");
-const statusEl = document.getElementById("status");
-const healthEl = document.getElementById("health");
-const searchInput = document.getElementById("search");
-const pauseRefreshInput = document.getElementById("pause-refresh");
-const themeSelect = document.getElementById("theme");
-const previewThemeSelect = document.getElementById("preview-theme");
-const typstPreviewThemeInput = document.getElementById("typst-preview-theme");
-const editorFileSyncInput = document.getElementById("editor-file-sync");
-const seekEnabledInput = document.getElementById("seek-enabled");
-const markdownFrontMatterVisibleInput = document.getElementById("markdown-frontmatter-visible");
-const markdownFrontMatterExpandedInput = document.getElementById("markdown-frontmatter-expanded");
-const markdownFrontMatterTitleInput = document.getElementById("markdown-frontmatter-title");
-const openSettingsButton = document.getElementById("open-settings");
-const closeSettingsButton = document.getElementById("close-settings");
-const toggleSidebarButton = document.getElementById("toggle-sidebar");
-const showSidebarButton = document.getElementById("show-sidebar");
-const goHomeButton = document.getElementById("go-home");
-const notFoundMessageEl = document.getElementById("not-found-message");
-const fileViewEl = document.getElementById("file-view");
-const settingsViewEl = document.getElementById("settings-view");
-const notFoundViewEl = document.getElementById("not-found-view");
+const appEl = requiredSelector<HTMLDivElement>(".app");
+const sidebarEl = requiredElement<HTMLElement>("sidebar");
+const treeEl = requiredElement<HTMLElement>("tree");
+const previewEl = requiredElement<HTMLElement>("preview");
+const markdownThemeCSS = requiredElement<HTMLLinkElement>("markdown-theme-css");
+const statusEl = requiredElement<HTMLElement>("status");
+const healthEl = requiredElement<HTMLElement>("health");
+const searchInput = requiredElement<HTMLInputElement>("search");
+const pauseRefreshInput = requiredElement<HTMLInputElement>("pause-refresh");
+const themeSelect = requiredElement<HTMLSelectElement>("theme");
+const previewThemeSelect = requiredElement<HTMLSelectElement>("preview-theme");
+const typstPreviewThemeInput =
+  requiredElement<HTMLInputElement>("typst-preview-theme");
+const editorFileSyncInput = requiredElement<HTMLInputElement>("editor-file-sync");
+const seekEnabledInput = requiredElement<HTMLInputElement>("seek-enabled");
+const markdownFrontMatterVisibleInput = requiredElement<HTMLInputElement>(
+  "markdown-frontmatter-visible",
+);
+const markdownFrontMatterExpandedInput = requiredElement<HTMLInputElement>(
+  "markdown-frontmatter-expanded",
+);
+const markdownFrontMatterTitleInput = requiredElement<HTMLInputElement>(
+  "markdown-frontmatter-title",
+);
+const openSettingsButton = requiredElement<HTMLButtonElement>("open-settings");
+const closeSettingsButton = requiredElement<HTMLButtonElement>("close-settings");
+const toggleSidebarButton = requiredElement<HTMLButtonElement>("toggle-sidebar");
+const showSidebarButton = requiredElement<HTMLButtonElement>("show-sidebar");
+const goHomeButton = requiredElement<HTMLButtonElement>("go-home");
+const notFoundMessageEl = requiredElement<HTMLElement>("not-found-message");
+const fileViewEl = requiredElement<HTMLElement>("file-view");
+const settingsViewEl = requiredElement<HTMLElement>("settings-view");
+const notFoundViewEl = requiredElement<HTMLElement>("not-found-view");
 
 searchInput.value = state.search;
 themeSelect.value = state.theme;
@@ -164,7 +230,8 @@ seekEnabledInput.addEventListener("change", async () => {
 
 markdownFrontMatterVisibleInput.addEventListener("change", async () => {
   const previous = state.settings.markdown_frontmatter_visible;
-  state.settings.markdown_frontmatter_visible = markdownFrontMatterVisibleInput.checked;
+  state.settings.markdown_frontmatter_visible =
+    markdownFrontMatterVisibleInput.checked;
   const result = await syncSettings();
   if (!result.ok) {
     state.settings.markdown_frontmatter_visible = previous;
@@ -177,7 +244,8 @@ markdownFrontMatterVisibleInput.addEventListener("change", async () => {
 
 markdownFrontMatterExpandedInput.addEventListener("change", async () => {
   const previous = state.settings.markdown_frontmatter_expanded;
-  state.settings.markdown_frontmatter_expanded = markdownFrontMatterExpandedInput.checked;
+  state.settings.markdown_frontmatter_expanded =
+    markdownFrontMatterExpandedInput.checked;
   const result = await syncSettings();
   if (!result.ok) {
     state.settings.markdown_frontmatter_expanded = previous;
@@ -190,7 +258,8 @@ markdownFrontMatterExpandedInput.addEventListener("change", async () => {
 
 markdownFrontMatterTitleInput.addEventListener("change", async () => {
   const previous = state.settings.markdown_frontmatter_title;
-  state.settings.markdown_frontmatter_title = markdownFrontMatterTitleInput.checked;
+  state.settings.markdown_frontmatter_title =
+    markdownFrontMatterTitleInput.checked;
   const result = await syncSettings({ rerenderMarkdown: true });
   if (!result.ok) {
     state.settings.markdown_frontmatter_title = previous;
@@ -200,37 +269,70 @@ markdownFrontMatterTitleInput.addEventListener("change", async () => {
   setStatus("Settings updated.");
 });
 
-function setStatus(message) {
+function requiredElement<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`Missing required element #${id}`);
+  }
+  return element as T;
+}
+
+function requiredSelector<T extends Element>(selector: string): T {
+  const element = document.querySelector(selector);
+  if (!element) {
+    throw new Error(`Missing required element ${selector}`);
+  }
+  return element as T;
+}
+
+function loadExpandedPaths(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE.expanded);
+    if (!raw) {
+      return new Set();
+    }
+    const values = JSON.parse(raw);
+    return Array.isArray(values)
+      ? new Set(values.filter((value): value is string => typeof value === "string"))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function setStatus(message: string): void {
   state.statusMessage = message || "";
   renderStatus();
 }
 
-function renderStatus() {
+function renderStatus(): void {
   statusEl.textContent = state.statusMessage;
 }
 
-function applyTheme(theme) {
+function applyTheme(theme: string): void {
   document.body.dataset.theme = resolveThemeMode(theme);
 }
 
-function resolveThemeMode(theme) {
+function resolveThemeMode(theme: string): string {
   return theme === "system"
-    ? (systemThemeMedia?.matches ? "dark" : "light")
+    ? systemThemeMedia?.matches
+      ? "dark"
+      : "light"
     : theme;
 }
 
-function applyMarkdownTheme(theme) {
+function applyMarkdownTheme(theme: string): void {
   markdownThemeCSS.href = `/themes/markdown/${theme}.css`;
 }
 
-function setSidebarCollapsed(collapsed) {
+function setSidebarCollapsed(collapsed: boolean): void {
   state.sidebarCollapsed = collapsed;
   state.settings.sidebar_collapsed = collapsed;
   renderSidebar();
   void syncSettings();
 }
 
-function renderSidebar() {
+function renderSidebar(): void {
   appEl.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
   showSidebarButton.classList.toggle("hidden", !state.sidebarCollapsed);
   toggleSidebarButton.textContent = state.sidebarCollapsed ? "Show" : "Hide";
@@ -245,7 +347,7 @@ function renderSidebar() {
   }
 }
 
-function escapeHTML(value) {
+function escapeHTML(value?: string): string {
   return (value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -263,33 +365,39 @@ if (systemThemeMedia) {
   });
 }
 
-async function apiFetch(path, options = {}) {
+async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiResult<T>> {
   const response = await fetch(path, options);
-  const payload = await response.json().catch(() => ({
+  const payload = (await response.json().catch(() => ({
     ok: false,
     error: { message: "Invalid server response" },
-  }));
+  }))) as { ok?: boolean; data?: T; error?: ApiError };
   if (!response.ok || !payload.ok) {
-    return { ok: false, error: payload.error || { message: "Request failed" } };
+    return {
+      ok: false,
+      error: payload.error || { message: "Request failed" },
+    };
   }
-  return { ok: true, data: payload.data };
+  return { ok: true, data: payload.data as T };
 }
 
-function setPage(page) {
+function setPage(page: Page): void {
   fileViewEl.classList.toggle("hidden", page !== "file");
   settingsViewEl.classList.toggle("hidden", page !== "settings");
   notFoundViewEl.classList.toggle("hidden", page !== "not-found");
 }
 
-function filteredNodes(nodes) {
+function filteredNodes(nodes: TreeNode[]): TreeNode[] {
   if (!state.search) {
     return nodes;
   }
-  const matchNode = (node) => {
+  const matchNode = (node: TreeNode): TreeNode | null => {
     const haystack = `${node.name} ${node.path || ""}`.toLowerCase();
     const isMatch = haystack.includes(state.search);
     if (node.children?.length) {
-      const children = node.children.map(matchNode).filter(Boolean);
+      const children = node.children.map(matchNode).filter(isDefined);
       if (isMatch || children.length) {
         return { ...node, children };
       }
@@ -297,10 +405,14 @@ function filteredNodes(nodes) {
     }
     return isMatch ? node : null;
   };
-  return nodes.map(matchNode).filter(Boolean);
+  return nodes.map(matchNode).filter(isDefined);
 }
 
-function renderTree() {
+function isDefined<T>(value: T | null): value is T {
+  return value !== null;
+}
+
+function renderTree(): void {
   treeEl.innerHTML = "";
   const nodes = filteredNodes(state.tree);
   if (!nodes.length) {
@@ -310,7 +422,11 @@ function renderTree() {
   renderTreeNodes(nodes, treeEl, 0);
 }
 
-function renderTreeNodes(nodes, container, depth) {
+function renderTreeNodes(
+  nodes: TreeNode[],
+  container: HTMLElement,
+  depth: number,
+): void {
   for (const node of nodes) {
     const wrapper = document.createElement("div");
     wrapper.className = "tree-node";
@@ -352,7 +468,7 @@ function renderTreeNodes(nodes, container, depth) {
       if (node.path === state.current?.file?.path) {
         row.classList.add("selected");
       }
-      row.addEventListener("click", () => setCurrent(node.path));
+      row.addEventListener("click", () => void setCurrent(node.path));
       wrapper.appendChild(row);
     }
 
@@ -360,7 +476,7 @@ function renderTreeNodes(nodes, container, depth) {
   }
 }
 
-function renderPreview() {
+function renderPreview(): void {
   rememberFrontMatterState();
   const current = state.current;
   const file = current?.file || null;
@@ -408,13 +524,13 @@ function renderPreview() {
   previewEl.textContent = file ? "No preview available." : "No file selected.";
 }
 
-function renderMarkdownMath(container) {
+function renderMarkdownMath(container: Element | null): void {
   if (!container) {
     return;
   }
   if (typeof katex?.render === "function") {
     for (const node of container.querySelectorAll(".markdown-math-block")) {
-      katex.render(node.dataset.latex || "", node, {
+      katex.render(node.getAttribute("data-latex") || "", node, {
         displayMode: true,
         throwOnError: false,
       });
@@ -434,17 +550,24 @@ function renderMarkdownMath(container) {
   });
 }
 
-function renderFrontMatter(frontMatter) {
+function renderFrontMatter(frontMatter?: FrontMatter): string {
   if (!frontMatter?.entries?.length) {
     return "";
   }
-  const open = (state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded) ? " open" : "";
-  const rows = frontMatter.entries.map((entry) => `
+  const open =
+    (state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded)
+      ? " open"
+      : "";
+  const rows = frontMatter.entries
+    .map(
+      (entry) => `
     <tr>
       <th>${escapeHTML(entry.key)}</th>
       <td><code>${escapeHTML(entry.value)}</code></td>
     </tr>
-  `).join("");
+  `,
+    )
+    .join("");
   return `
     <details class="frontmatter-panel"${open}>
       <summary>
@@ -460,15 +583,15 @@ function renderFrontMatter(frontMatter) {
   `;
 }
 
-function rememberFrontMatterState() {
-  const panel = previewEl.querySelector(".frontmatter-panel");
+function rememberFrontMatterState(): void {
+  const panel = previewEl.querySelector<HTMLDetailsElement>(".frontmatter-panel");
   if (panel) {
     state.frontMatterExpanded = panel.open;
   }
 }
 
-function bindFrontMatterState() {
-  const panel = previewEl.querySelector(".frontmatter-panel");
+function bindFrontMatterState(): void {
+  const panel = previewEl.querySelector<HTMLDetailsElement>(".frontmatter-panel");
   if (!panel) {
     return;
   }
@@ -478,16 +601,20 @@ function bindFrontMatterState() {
   });
 }
 
-function renderHealth() {
+function renderHealth(): void {
   const health = state.health;
   if (!health) {
     healthEl.innerHTML = "";
     return;
   }
 
-  const items = [];
-  items.push(`<div class="status-item">Status: ${escapeHTML(health.status || "unknown")}</div>`);
-  items.push(`<div class="status-item">Watcher: ${health.watcher?.enabled ? "enabled" : "disabled"}</div>`);
+  const items: string[] = [];
+  items.push(
+    `<div class="status-item">Status: ${escapeHTML(health.status || "unknown")}</div>`,
+  );
+  items.push(
+    `<div class="status-item">Watcher: ${health.watcher?.enabled ? "enabled" : "disabled"}</div>`,
+  );
 
   for (const renderer of health.renderers || []) {
     const value = renderer.available ? "available" : "unavailable";
@@ -499,7 +626,7 @@ function renderHealth() {
   healthEl.innerHTML = items.join("");
 }
 
-function applyFiles(data) {
+function applyFiles(data: FilesData): void {
   state.files = data.files || [];
   state.tree = data.tree || [];
   renderTree();
@@ -508,7 +635,7 @@ function applyFiles(data) {
   );
 }
 
-function applyCurrent(data) {
+function applyCurrent(data: CurrentData): void {
   const previousPath = state.current?.file?.path || "";
   state.current = data;
   const path = data.file?.path || "";
@@ -527,7 +654,7 @@ function applyCurrent(data) {
   state.localSelectionInFlight = "";
 }
 
-function applySeek(data) {
+function applySeek(data: SeekData | null): void {
   state.seek = data || null;
   if (!state.settings.seek_enabled) {
     return;
@@ -535,8 +662,8 @@ function applySeek(data) {
   queueApplySeek();
 }
 
-function applySettings(data) {
-  const settings = data.settings || {};
+function applySettings(data: SettingsData): void {
+  const settings = data.settings || state.settings;
   const storedTheme = localStorage.getItem(STORAGE.theme);
   state.settings = {
     auto_refresh_paused: !!settings.auto_refresh_paused,
@@ -544,8 +671,10 @@ function applySettings(data) {
     editor_file_sync_enabled: settings.editor_file_sync_enabled !== false,
     seek_enabled: settings.seek_enabled !== false,
     typst_preview_theme: settings.typst_preview_theme !== false,
-    markdown_frontmatter_visible: settings.markdown_frontmatter_visible !== false,
-    markdown_frontmatter_expanded: settings.markdown_frontmatter_expanded !== false,
+    markdown_frontmatter_visible:
+      settings.markdown_frontmatter_visible !== false,
+    markdown_frontmatter_expanded:
+      settings.markdown_frontmatter_expanded !== false,
     markdown_frontmatter_title: settings.markdown_frontmatter_title !== false,
     theme: settings.theme || "light",
     preview_theme: settings.preview_theme || "default",
@@ -562,9 +691,12 @@ function applySettings(data) {
   editorFileSyncInput.checked = !!state.settings.editor_file_sync_enabled;
   seekEnabledInput.checked = !!state.settings.seek_enabled;
   typstPreviewThemeInput.checked = !!state.settings.typst_preview_theme;
-  markdownFrontMatterVisibleInput.checked = !!state.settings.markdown_frontmatter_visible;
-  markdownFrontMatterExpandedInput.checked = !!state.settings.markdown_frontmatter_expanded;
-  markdownFrontMatterTitleInput.checked = !!state.settings.markdown_frontmatter_title;
+  markdownFrontMatterVisibleInput.checked =
+    !!state.settings.markdown_frontmatter_visible;
+  markdownFrontMatterExpandedInput.checked =
+    !!state.settings.markdown_frontmatter_expanded;
+  markdownFrontMatterTitleInput.checked =
+    !!state.settings.markdown_frontmatter_title;
   if (!state.settings.seek_enabled) {
     state.seek = null;
   } else {
@@ -575,7 +707,7 @@ function applySettings(data) {
   }
 }
 
-function currentSettingsPayload() {
+function currentSettingsPayload(): Settings {
   return {
     auto_refresh_paused: !!state.settings.auto_refresh_paused,
     sidebar_collapsed: !!state.sidebarCollapsed,
@@ -583,15 +715,16 @@ function currentSettingsPayload() {
     seek_enabled: !!state.settings.seek_enabled,
     typst_preview_theme: !!state.settings.typst_preview_theme,
     markdown_frontmatter_visible: !!state.settings.markdown_frontmatter_visible,
-    markdown_frontmatter_expanded: !!state.settings.markdown_frontmatter_expanded,
+    markdown_frontmatter_expanded:
+      !!state.settings.markdown_frontmatter_expanded,
     markdown_frontmatter_title: !!state.settings.markdown_frontmatter_title,
     theme: resolveThemeMode(state.theme),
     preview_theme: state.previewTheme,
   };
 }
 
-async function refreshCurrentPreview() {
-  const result = await apiFetch("/api/refresh", { method: "POST" });
+async function refreshCurrentPreview(): Promise<ApiResult<CurrentData>> {
+  const result = await apiFetch<CurrentData>("/api/refresh", { method: "POST" });
   if (!result.ok) {
     setStatus(result.error.message);
     return result;
@@ -600,8 +733,10 @@ async function refreshCurrentPreview() {
   return result;
 }
 
-async function syncSettings(options = {}) {
-  const result = await apiFetch("/api/settings", {
+async function syncSettings(
+  options: SyncSettingsOptions = {},
+): Promise<ApiResult<SettingsData> | ApiResult<CurrentData>> {
+  const result = await apiFetch<SettingsData>("/api/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(currentSettingsPayload()),
@@ -620,12 +755,12 @@ async function syncSettings(options = {}) {
   return result;
 }
 
-function applyHealth(data) {
+function applyHealth(data: HealthData): void {
   state.health = data;
   renderHealth();
 }
 
-function queueApplySeek() {
+function queueApplySeek(): void {
   if (state.pendingSeekFrame) {
     cancelAnimationFrame(state.pendingSeekFrame);
   }
@@ -635,14 +770,20 @@ function queueApplySeek() {
   });
 }
 
-function applySeekToPreview() {
-  applyPreviewSeek(fileViewEl, previewEl, state.current, state.seek, state.settings);
+function applySeekToPreview(): void {
+  applyPreviewSeek(
+    fileViewEl,
+    previewEl,
+    state.current,
+    state.seek,
+    state.settings,
+  );
 }
 
-async function setCurrent(path) {
+async function setCurrent(path: string): Promise<void> {
   state.localSelectionInFlight = path;
   setStatus(`Loading ${path}...`);
-  const result = await apiFetch("/api/current", {
+  const result = await apiFetch<CurrentData>("/api/current", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, origin: "web" }),
@@ -656,18 +797,21 @@ async function setCurrent(path) {
   navigateToFilePath(path, { replace: true });
 }
 
-function syncLocationPath(path) {
+function syncLocationPath(path: string): void {
   syncCurrentPath(path);
 }
 
-async function loadInitialState() {
-  const initialRoute = parseRoute(window.location.pathname, window.location.search);
+async function loadInitialState(): Promise<void> {
+  const initialRoute = parseRoute(
+    window.location.pathname,
+    window.location.search,
+  );
   const [health, files, current, seek, settings] = await Promise.all([
-    apiFetch("/api/health"),
-    apiFetch("/api/files"),
-    apiFetch("/api/current"),
-    apiFetch("/api/seek"),
-    apiFetch("/api/settings"),
+    apiFetch<HealthData>("/api/health"),
+    apiFetch<FilesData>("/api/files"),
+    apiFetch<CurrentData>("/api/current"),
+    apiFetch<SeekData>("/api/seek"),
+    apiFetch<SettingsData>("/api/settings"),
   ]);
   if (!health.ok) throw new Error(health.error.message);
   if (!files.ok) throw new Error(files.error.message);
@@ -682,11 +826,12 @@ async function loadInitialState() {
   applySettings(settings.data);
   applyRoute(initialRoute);
 
-  const initialSettings = settings.data.settings || {};
+  const initialSettings = settings.data.settings || state.settings;
   if (
     resolveThemeMode(state.theme) !== (initialSettings.theme || "light") ||
     state.previewTheme !== (initialSettings.preview_theme || "default") ||
-    !!state.settings.typst_preview_theme !== (initialSettings.typst_preview_theme !== false)
+    !!state.settings.typst_preview_theme !==
+      (initialSettings.typst_preview_theme !== false)
   ) {
     await syncSettings({ rerenderTypst: current.data.file?.kind === "typst" });
   }
@@ -695,37 +840,44 @@ async function loadInitialState() {
   const routedPath = initialRoute.kind === "file" ? initialRoute.path : "";
   const preferredPath =
     routedPath || (!current.data.current && storedPath ? storedPath : "");
-  if (preferredPath && preferredPath !== current.data.file?.path && fileExists(preferredPath)) {
+  if (
+    preferredPath &&
+    preferredPath !== current.data.file?.path &&
+    fileExists(preferredPath)
+  ) {
     await setCurrent(preferredPath);
   }
 }
 
-function connectEvents() {
+function parseEventData<T>(event: MessageEvent<string>): T {
+  return (JSON.parse(event.data) as { data: T }).data;
+}
+
+function connectEvents(): void {
   const events = new EventSource("/events");
-  const parseEvent = (event) => JSON.parse(event.data).data;
 
   events.addEventListener("files_changed", (event) => {
-    applyFiles(parseEvent(event));
+    applyFiles(parseEventData<FilesData>(event as MessageEvent<string>));
   });
   events.addEventListener("current_changed", (event) => {
-    applyCurrent(parseEvent(event));
+    applyCurrent(parseEventData<CurrentData>(event as MessageEvent<string>));
   });
   events.addEventListener("preview_updated", (event) => {
-    applyCurrent(parseEvent(event));
+    applyCurrent(parseEventData<CurrentData>(event as MessageEvent<string>));
   });
   events.addEventListener("seek_changed", (event) => {
-    applySeek(parseEvent(event));
+    applySeek(parseEventData<SeekData>(event as MessageEvent<string>));
   });
   events.addEventListener("render_started", (event) => {
-    state.current = parseEvent(event);
+    state.current = parseEventData<CurrentData>(event as MessageEvent<string>);
     renderPreview();
     setStatus(`Rendering ${state.current?.file?.path || "file"}...`);
   });
   events.addEventListener("render_failed", (event) => {
-    applyCurrent(parseEvent(event));
+    applyCurrent(parseEventData<CurrentData>(event as MessageEvent<string>));
   });
   events.addEventListener("settings_changed", (event) => {
-    applySettings(parseEvent(event));
+    applySettings(parseEventData<SettingsData>(event as MessageEvent<string>));
   });
   events.onerror = () => {
     setStatus("Event stream disconnected. Retrying...");
@@ -734,68 +886,83 @@ function connectEvents() {
 
 loadInitialState()
   .then(connectEvents)
-  .catch((error) => {
-    setStatus(error.message || "Failed to load application state");
+  .catch((error: unknown) => {
+    setStatus(
+      error instanceof Error
+        ? error.message
+        : "Failed to load application state",
+    );
     applyRoute({ kind: "settings" });
   });
 
-function fileExists(path) {
+function fileExists(path: string): boolean {
   return state.files.some((file) => file.path === path);
 }
 
-function applyRoute(route) {
+function applyRoute(route: Route): void {
   if (route.kind === "settings") {
     setPage("settings");
     return;
   }
-  if (route.kind === "file") {
-    if (!route.path || fileExists(route.path) || state.files.length === 0) {
-      setPage("file");
-      if (route.path && state.current?.file?.path !== route.path && fileExists(route.path)) {
-        void setCurrent(route.path);
-      }
-      return;
+  if (!route.path || fileExists(route.path) || state.files.length === 0) {
+    setPage("file");
+    if (
+      route.path &&
+      state.current?.file?.path !== route.path &&
+      fileExists(route.path)
+    ) {
+      void setCurrent(route.path);
     }
-    showNotFound(`No previewable file exists at "${route.path}".`);
     return;
   }
-  showNotFound("That route does not exist in DPview.");
+  showNotFound(`No previewable file exists at "${route.path}".`);
 }
 
-function showNotFound(message) {
+function showNotFound(message: string): void {
   notFoundMessageEl.textContent = message;
   setPage("not-found");
 }
 
-function navigateToSettings(options = {}) {
+function navigateToSettings(options: { replace?: boolean } = {}): void {
   const { replace = false } = options;
   const url = new URL(window.location.href);
   url.searchParams.set("settings", "open");
-  window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  if (replace) {
+    window.history.replaceState({}, "", url);
+  } else {
+    window.history.pushState({}, "", url);
+  }
   applyRoute(parseRoute(url.pathname, url.search));
 }
 
-function navigateToCurrentFile(options = {}) {
+function navigateToCurrentFile(options: { replace?: boolean } = {}): void {
   navigateToFilePath(state.current?.file?.path || "", {
     ...options,
     preserveSettings: false,
   });
 }
 
-function navigateToFilePath(path, options = {}) {
+function navigateToFilePath(
+  path: string,
+  options: { replace?: boolean; apply?: boolean; preserveSettings?: boolean } = {},
+): void {
   const { replace = false, apply = true, preserveSettings = false } = options;
   const url = new URL(window.location.href);
   url.pathname = encodeAppPath(path || "");
   if (!preserveSettings) {
     url.searchParams.delete("settings");
   }
-  window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  if (replace) {
+    window.history.replaceState({}, "", url);
+  } else {
+    window.history.pushState({}, "", url);
+  }
   if (apply) {
     applyRoute(parseRoute(url.pathname, url.search));
   }
 }
 
-function syncCurrentPath(path) {
+function syncCurrentPath(path: string): void {
   const url = new URL(window.location.href);
   url.pathname = encodeAppPath(path || "");
   window.history.replaceState({}, "", url);
