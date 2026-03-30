@@ -69,6 +69,9 @@ Options:
   `notion`, or `paper`
 - `cursor_seek`: enable editor-to-preview seeking updates
 - `cursor_seek_debounce_ms`: debounce delay for cursor and viewport seek sync
+- `live_buffer_preview`: enable unsaved buffer preview updates while typing
+- `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer
+  preview update; defaults to `200`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly
   without injecting preview theme tokens
 - `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown
@@ -104,6 +107,9 @@ matching CLI flags, including `--editor-file-sync`, `--seek-enabled`,
   and preview
 - `:DPviewFileSyncToggle` toggle editor-driven file following in the plugin and
   preview
+- `:DPviewLivePreviewEnable` enable unsaved live buffer preview updates
+- `:DPviewLivePreviewDisable` disable unsaved live buffer preview updates
+- `:DPviewLivePreviewToggle` toggle unsaved live buffer preview updates
 
 ==============================================================================
 vim:tw=78:ts=8:noet:ft=help:norl:

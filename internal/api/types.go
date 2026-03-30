@@ -64,12 +64,14 @@ type FrontMatterEntry struct {
 }
 
 type CurrentData struct {
-	File    *files.FileInfo `json:"file,omitempty"`
-	Preview Preview         `json:"preview"`
-	Version int64           `json:"version"`
-	EventID int64           `json:"event_id"`
-	Current bool            `json:"current"`
-	Origin  string          `json:"origin,omitempty"`
+	File          *files.FileInfo `json:"file,omitempty"`
+	Preview       Preview         `json:"preview"`
+	Version       int64           `json:"version"`
+	EventID       int64           `json:"event_id"`
+	Current       bool            `json:"current"`
+	Origin        string          `json:"origin,omitempty"`
+	Transient     bool            `json:"transient"`
+	SourceVersion int64           `json:"source_version,omitempty"`
 }
 
 type SeekData struct {
@@ -95,6 +97,7 @@ type Settings struct {
 	AutoRefreshPaused           bool   `json:"auto_refresh_paused"`
 	SidebarCollapsed            bool   `json:"sidebar_collapsed"`
 	EditorFileSyncEnabled       bool   `json:"editor_file_sync_enabled"`
+	LiveBufferPreviewEnabled    bool   `json:"live_buffer_preview_enabled"`
 	SeekEnabled                 bool   `json:"seek_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
@@ -108,6 +111,7 @@ type SettingsPatch struct {
 	AutoRefreshPaused           *bool   `json:"auto_refresh_paused,omitempty"`
 	SidebarCollapsed            *bool   `json:"sidebar_collapsed,omitempty"`
 	EditorFileSyncEnabled       *bool   `json:"editor_file_sync_enabled,omitempty"`
+	LiveBufferPreviewEnabled    *bool   `json:"live_buffer_preview_enabled,omitempty"`
 	SeekEnabled                 *bool   `json:"seek_enabled,omitempty"`
 	TypstPreviewTheme           *bool   `json:"typst_preview_theme,omitempty"`
 	MarkdownFrontMatterVisible  *bool   `json:"markdown_frontmatter_visible,omitempty"`

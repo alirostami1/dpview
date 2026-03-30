@@ -97,6 +97,7 @@ export interface Elements {
     previewThemeSelect: HTMLSelectElement;
     typstPreviewThemeInput: HTMLInputElement;
     editorFileSyncInput: HTMLInputElement;
+    liveBufferPreviewInput: HTMLInputElement;
     seekEnabledInput: HTMLInputElement;
     markdownFrontMatterVisibleInput: HTMLInputElement;
     markdownFrontMatterExpandedInput: HTMLInputElement;

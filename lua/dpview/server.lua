@@ -196,6 +196,7 @@ function M.start(state, callback)
     tostring(port),
     "--sidebar-closed=" .. tostring(state.config.sidebar_collapsed),
     "--editor-file-sync=" .. tostring(state.config.editor_file_sync),
+    "--live-buffer-preview=" .. tostring(state.config.live_buffer_preview),
     "--seek-enabled=" .. tostring(state.config.cursor_seek),
     "--theme",
     state.config.theme,

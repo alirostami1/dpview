@@ -106,6 +106,7 @@ const elements: Elements = {
     previewThemeSelect: requiredElement<HTMLSelectElement>("preview-theme"),
     typstPreviewThemeInput: requiredElement<HTMLInputElement>("typst-preview-theme"),
     editorFileSyncInput: requiredElement<HTMLInputElement>("editor-file-sync"),
+    liveBufferPreviewInput: requiredElement<HTMLInputElement>("live-buffer-preview"),
     seekEnabledInput: requiredElement<HTMLInputElement>("seek-enabled"),
     markdownFrontMatterVisibleInput: requiredElement<HTMLInputElement>("markdown-frontmatter-visible"),
     markdownFrontMatterExpandedInput: requiredElement<HTMLInputElement>("markdown-frontmatter-expanded"),
@@ -130,6 +131,7 @@ const state: State = {
         auto_refresh_paused: false,
         sidebar_collapsed: false,
         editor_file_sync_enabled: true,
+        live_buffer_preview_enabled: false,
         seek_enabled: true,
         typst_preview_theme: true,
         markdown_frontmatter_visible: true,
@@ -304,6 +306,21 @@ function bindUIEvents(): void {
         if (!result.ok) {
             state.settings.editor_file_sync_enabled = previous;
             elements.editorFileSyncInput.checked = previous;
+            return;
+        }
+        updateStatus("Settings updated.");
+    });
+
+    elements.liveBufferPreviewInput.addEventListener("change", async () => {
+        const previous = state.settings.live_buffer_preview_enabled;
+        state.settings.live_buffer_preview_enabled = elements.liveBufferPreviewInput.checked;
+        const result = await syncSettings({
+            rerenderTypst: state.current?.transient === true && state.current.file?.kind === "typst",
+            rerenderMarkdown: state.current?.transient === true && state.current.file?.kind === "markdown",
+        });
+        if (!result.ok) {
+            state.settings.live_buffer_preview_enabled = previous;
+            elements.liveBufferPreviewInput.checked = previous;
             return;
         }
         updateStatus("Settings updated.");
@@ -529,6 +546,7 @@ function renderSettingsUI(): void {
     elements.previewThemeSelect.value = state.previewTheme;
     elements.pauseRefreshInput.checked = state.settings.auto_refresh_paused;
     elements.editorFileSyncInput.checked = state.settings.editor_file_sync_enabled;
+    elements.liveBufferPreviewInput.checked = state.settings.live_buffer_preview_enabled;
     elements.seekEnabledInput.checked = state.settings.seek_enabled;
     elements.typstPreviewThemeInput.checked = state.settings.typst_preview_theme;
     elements.markdownFrontMatterVisibleInput.checked = state.settings.markdown_frontmatter_visible;
@@ -567,6 +585,7 @@ function currentSettingsPayload(): SettingsPayload {
         auto_refresh_paused: state.settings.auto_refresh_paused,
         sidebar_collapsed: state.sidebarCollapsed,
         editor_file_sync_enabled: state.settings.editor_file_sync_enabled,
+        live_buffer_preview_enabled: state.settings.live_buffer_preview_enabled,
         seek_enabled: state.settings.seek_enabled,
         typst_preview_theme: state.settings.typst_preview_theme,
         markdown_frontmatter_visible: state.settings.markdown_frontmatter_visible,
@@ -773,9 +792,25 @@ function startEventStream(attempt: number): void {
     });
     source.addEventListener("render_started", (event) => {
         handleEvent(source, attempt, () => {
-            state.current = parseEventData(event, "render_started", currentDataSchema);
-            renderPreviewUI();
-            updateStatus(`Rendering ${state.current?.file?.path || "file"}...`);
+            const incoming = parseEventData(event, "render_started", currentDataSchema);
+            const previous = state.current;
+            const keepExistingPreview =
+                previous !== null &&
+                incoming.transient === true &&
+                previous?.file?.path === incoming.file?.path &&
+                Boolean(previous?.preview?.html) &&
+                previous.preview.status !== "error";
+
+            if (keepExistingPreview && previous) {
+                state.current = {
+                    ...incoming,
+                    preview: previous.preview,
+                };
+            } else {
+                state.current = incoming;
+                renderPreviewUI();
+            }
+            updateStatus(`Rendering ${incoming.file?.path || "file"}...`);
         });
     });
     source.addEventListener("render_failed", (event) => {

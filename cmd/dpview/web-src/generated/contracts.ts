@@ -61,6 +61,8 @@ export interface CurrentData {
     event_id: number;
     current: boolean;
     origin?: string;
+    transient: boolean;
+    source_version?: number;
 }
 
 export interface SeekData {
@@ -86,6 +88,7 @@ export interface Settings {
     auto_refresh_paused: boolean;
     sidebar_collapsed: boolean;
     editor_file_sync_enabled: boolean;
+    live_buffer_preview_enabled: boolean;
     seek_enabled: boolean;
     typst_preview_theme: boolean;
     markdown_frontmatter_visible: boolean;
@@ -195,6 +198,8 @@ export const currentDataSchema: z.ZodType<CurrentData> = z.object({
     event_id: z.number().int(),
     current: z.boolean(),
     origin: z.string().optional(),
+    transient: z.boolean(),
+    source_version: z.number().int().optional(),
 }).passthrough();
 
 export const seekDataSchema: z.ZodType<SeekData> = z.object({
@@ -220,6 +225,7 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
     auto_refresh_paused: z.boolean(),
     sidebar_collapsed: z.boolean(),
     editor_file_sync_enabled: z.boolean(),
+    live_buffer_preview_enabled: z.boolean(),
     seek_enabled: z.boolean(),
     typst_preview_theme: z.boolean(),
     markdown_frontmatter_visible: z.boolean(),

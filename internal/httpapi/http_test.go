@@ -10,6 +10,7 @@ import (
 	"testing/fstest"
 
 	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/app"
 	"codeberg.org/aros/dpview/internal/files"
 	"codeberg.org/aros/dpview/internal/state"
 )
@@ -18,7 +19,7 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 	store := state.NewStore()
 	store.SetFiles([]files.FileInfo{{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}}, []files.TreeNode{{Name: "notes", Children: []files.TreeNode{{Name: "test.md", Path: "notes/test.md", Kind: files.KindMarkdown}}}})
 	file := files.FileInfo{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}
-	store.SetCurrent(&file, api.Preview{HTML: "<p>ok</p>", Status: api.RenderStatusReady}, "test", true)
+	store.SetCurrent(&file, api.Preview{HTML: "<p>ok</p>", Status: api.RenderStatusReady}, "test", true, false, 0)
 	store.SetSeek(api.SeekData{Path: "notes/test.md", Line: 8, TopLine: 4, BottomLine: 12, FocusLine: 8}, "test")
 	store.AppendLog(api.LogEntry{Level: "error", Source: "render", Code: "render_failed", Message: "Render failed", Detail: "boom"})
 
@@ -121,7 +122,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		seekStatus:    http.StatusConflict,
 		seek:          api.SeekData{Path: "notes/test.md", Line: 12, TopLine: 8, BottomLine: 16, FocusLine: 12},
 		logs:          api.LogData{Entries: []api.LogEntry{{Level: "error", Source: "render", Code: "render_failed", Message: "failed"}}},
-		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
+		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, LiveBufferPreviewEnabled: false, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
 	})
@@ -167,15 +168,21 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("POST /api/refresh status=%d body=%s", resp.StatusCode, body)
 	}
 
+	resp = performRequest(t, handler, http.MethodPost, "/api/live-preview", `{"path":"notes/test.md","content":"# Draft","version":3}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"transient":true`) || !strings.Contains(body, `"source_version":3`) {
+		t.Fatalf("POST /api/live-preview status=%d body=%s", resp.StatusCode, body)
+	}
+
 	resp = performRequest(t, handler, http.MethodDelete, "/api/current", "")
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"Current file cleared"`) {
 		t.Fatalf("DELETE /api/current status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"editor_file_sync_enabled":false,"seek_enabled":false,"preview_theme":"github"}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"editor_file_sync_enabled":false,"live_buffer_preview_enabled":false,"seek_enabled":false,"preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"live_buffer_preview_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
 	}
 
@@ -228,6 +235,16 @@ func (f fakeApp) Refresh(context.Context) (api.CurrentData, int, *api.Error) {
 	return f.current, http.StatusOK, nil
 }
 
+func (f fakeApp) SetLivePreview(_ context.Context, req app.LivePreviewRequest) (api.CurrentData, int, *api.Error) {
+	return api.CurrentData{
+		File:          &files.FileInfo{Path: req.Path, Name: "test.md", Kind: files.KindMarkdown},
+		Preview:       api.Preview{HTML: "<p>draft</p>", Status: api.RenderStatusReady},
+		Current:       true,
+		Transient:     true,
+		SourceVersion: req.Version,
+	}, http.StatusOK, nil
+}
+
 func (f fakeApp) ClearCurrent() api.CurrentData {
 	return f.clearCurrent
 }
@@ -249,6 +266,9 @@ func (f fakeApp) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
 	}
 	if patch.EditorFileSyncEnabled != nil {
 		settings.EditorFileSyncEnabled = *patch.EditorFileSyncEnabled
+	}
+	if patch.LiveBufferPreviewEnabled != nil {
+		settings.LiveBufferPreviewEnabled = *patch.LiveBufferPreviewEnabled
 	}
 	if patch.SeekEnabled != nil {
 		settings.SeekEnabled = *patch.SeekEnabled

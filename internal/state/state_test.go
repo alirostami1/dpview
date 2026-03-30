@@ -11,7 +11,7 @@ func TestPublishRenderStartedUsesMatchingEventMetadata(t *testing.T) {
 	store := NewStore()
 	info := &files.FileInfo{Path: "notes/test.md", Name: "test.md", Kind: files.KindMarkdown}
 
-	event := store.PublishRenderStarted(info)
+	event := store.PublishRenderStarted(info, true, 7)
 
 	if event.Type != api.EventRenderStarted {
 		t.Fatalf("event type = %q", event.Type)
@@ -29,6 +29,9 @@ func TestPublishRenderStartedUsesMatchingEventMetadata(t *testing.T) {
 	if data.File == nil || data.File.Path != info.Path {
 		t.Fatalf("payload file = %+v", data.File)
 	}
+	if !data.Transient || data.SourceVersion != 7 {
+		t.Fatalf("payload live preview metadata = %+v", data)
+	}
 }
 
 func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
@@ -40,6 +43,7 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 		AutoRefreshPaused:           true,
 		SidebarCollapsed:            true,
 		EditorFileSyncEnabled:       true,
+		LiveBufferPreviewEnabled:    false,
 		SeekEnabled:                 true,
 		TypstPreviewTheme:           true,
 		MarkdownFrontMatterVisible:  true,
@@ -50,8 +54,9 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 	})
 
 	data := store.PatchSettings(api.SettingsPatch{
-		SeekEnabled:  &disabled,
-		PreviewTheme: &dark,
+		SeekEnabled:              &disabled,
+		LiveBufferPreviewEnabled: &disabled,
+		PreviewTheme:             &dark,
 	})
 
 	if !data.Settings.AutoRefreshPaused || !data.Settings.SidebarCollapsed {
@@ -59,6 +64,9 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 	}
 	if data.Settings.SeekEnabled {
 		t.Fatalf("seek should be disabled: %+v", data.Settings)
+	}
+	if data.Settings.LiveBufferPreviewEnabled {
+		t.Fatalf("live buffer preview should stay disabled: %+v", data.Settings)
 	}
 	if data.Settings.PreviewTheme != "dark" {
 		t.Fatalf("preview theme = %q", data.Settings.PreviewTheme)

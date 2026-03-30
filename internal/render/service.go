@@ -32,13 +32,14 @@ type Config struct {
 }
 
 type RenderRequest struct {
-	Root     string
-	Info     files.FileInfo
-	AbsPath  string
-	Source   []byte
-	Started  time.Time
-	Limits   api.Limits
-	Settings api.Settings
+	Root      string
+	Info      files.FileInfo
+	AbsPath   string
+	Source    []byte
+	Transient bool
+	Started   time.Time
+	Limits    api.Limits
+	Settings  api.Settings
 }
 
 type DocumentRenderer interface {
@@ -150,19 +151,30 @@ func (s *Service) SetRunner(runner CommandRunner) {
 }
 
 func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath string, settings api.Settings) api.Preview {
+	source, err := os.ReadFile(absPath)
+	if err != nil {
+		return errPreview(time.Now().UTC(), "internal_error", "Failed to read source file", err.Error())
+	}
+	return s.RenderSource(ctx, info, absPath, source, settings, false)
+}
+
+func (s *Service) RenderSource(
+	ctx context.Context,
+	info files.FileInfo,
+	absPath string,
+	source []byte,
+	settings api.Settings,
+	transient bool,
+) api.Preview {
 	start := time.Now().UTC()
 	renderCtx, cancel := context.WithTimeout(ctx, time.Duration(s.limits.RenderTimeoutMS)*time.Millisecond)
 	defer cancel()
 
-	source, err := os.ReadFile(absPath)
-	if err != nil {
-		return errPreview(start, "internal_error", "Failed to read source file", err.Error())
-	}
 	if int64(len(source)) > s.limits.MaxFileSizeBytes {
 		return errPreview(start, "file_too_large", "File exceeds configured preview limit", fmt.Sprintf("%d > %d bytes", len(source), s.limits.MaxFileSizeBytes))
 	}
 
-	cacheKey := renderCacheKey(info, source, settings)
+	cacheKey := renderCacheKey(info, source, settings, transient)
 	if cached, ok := s.loadCache(cacheKey); ok {
 		cached.CacheHit = true
 		return cached
@@ -174,13 +186,14 @@ func (s *Service) Render(ctx context.Context, info files.FileInfo, absPath strin
 	}
 
 	preview := renderer.Render(renderCtx, RenderRequest{
-		Root:     s.root,
-		Info:     info,
-		AbsPath:  absPath,
-		Source:   source,
-		Started:  start,
-		Limits:   s.limits,
-		Settings: settings,
+		Root:      s.root,
+		Info:      info,
+		AbsPath:   absPath,
+		Source:    source,
+		Transient: transient,
+		Started:   start,
+		Limits:    s.limits,
+		Settings:  settings,
 	})
 	if preview.Error == nil {
 		s.storeCache(cacheKey, preview)
@@ -229,11 +242,13 @@ func (s *Service) storeCache(key string, preview api.Preview) {
 	s.cacheList.Remove(tail)
 }
 
-func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings) string {
+func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings, transient bool) string {
 	return strings.Join([]string{
 		info.Path,
 		info.ModTime.UTC().Format(time.RFC3339Nano),
 		shortHash(source),
+		fmt.Sprintf("%t", transient),
+		fmt.Sprintf("%t", settings.LiveBufferPreviewEnabled),
 		fmt.Sprintf("%t", settings.TypstPreviewTheme),
 		fmt.Sprintf("%t", settings.MarkdownFrontMatterTitle),
 		settings.Theme,

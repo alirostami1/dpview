@@ -124,6 +124,35 @@ func TestRenderMarkdownParsesFrontMatterAndInjectsTitle(t *testing.T) {
 	}
 }
 
+func TestRenderSourceMarkdownSupportsTransientContent(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "draft.md")
+	if err := os.WriteFile(path, []byte("# Saved"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.RenderSource(
+		context.Background(),
+		files.FileInfo{Path: "draft.md", Name: "draft.md", Kind: files.KindMarkdown},
+		path,
+		[]byte("# Draft\n"),
+		api.Settings{},
+		true,
+	)
+	if preview.Error != nil {
+		t.Fatalf("RenderSource() error = %+v", preview.Error)
+	}
+	if !strings.Contains(preview.HTML, ">Draft</h1>") || strings.Contains(preview.HTML, ">Saved</h1>") {
+		t.Fatalf("RenderSource() HTML = %q", preview.HTML)
+	}
+}
+
 func TestRenderMarkdownFrontMatterTitleDoesNotOverrideExistingH1(t *testing.T) {
 	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
 	if err != nil {

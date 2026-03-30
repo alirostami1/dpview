@@ -94,6 +94,8 @@ require("dpview").setup({
   preview_theme = "github",
   cursor_seek = true,
   cursor_seek_debounce_ms = 80,
+  live_buffer_preview = false,
+  live_buffer_preview_debounce_ms = 200,
   typst_preview_theme = true,
   markdown_frontmatter_visible = true,
   markdown_frontmatter_expanded = true,
@@ -116,6 +118,8 @@ Options:
 - `preview_theme`: DPview preview theme id such as `default`, `github`, `notion`, or `paper`
 - `cursor_seek`: enable editor-to-preview seeking updates
 - `cursor_seek_debounce_ms`: debounce delay for cursor/viewport seek updates
+- `live_buffer_preview`: enable unsaved buffer preview updates while typing
+- `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer preview update; defaults to `200`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly without injecting preview theme tokens
 - `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown previews
 - `markdown_frontmatter_expanded`: start Markdown front matter panels expanded
@@ -138,6 +142,9 @@ Options:
 - `:DPviewFileSyncEnable`
 - `:DPviewFileSyncDisable`
 - `:DPviewFileSyncToggle`
+- `:DPviewLivePreviewEnable`
+- `:DPviewLivePreviewDisable`
+- `:DPviewLivePreviewToggle`
 
 ## Notes
 

@@ -11,6 +11,7 @@ local defaults = {
   port = nil,
   sidebar_collapsed = false,
   editor_file_sync = true,
+  live_buffer_preview = false,
   theme = nil,
   preview_theme = "default",
   typst_preview_theme = true,
@@ -19,6 +20,7 @@ local defaults = {
   markdown_frontmatter_title = true,
   cursor_seek = true,
   cursor_seek_debounce_ms = 80,
+  live_buffer_preview_debounce_ms = 200,
   auto_start = true,
   auto_open_browser = false,
   notify = true,
@@ -43,6 +45,9 @@ local state = {
   seek = {
     seq = 0,
   },
+  live = {
+    seq = 0,
+  },
 }
 
 local function notify(level, message)
@@ -61,6 +66,7 @@ local function create_autocmds()
     group = group,
     callback = function(args)
       require("dpview").sync_current_buffer({ bufnr = args.buf })
+      require("dpview").sync_live_preview({ bufnr = args.buf, immediate = true })
       require("dpview").sync_view({ bufnr = args.buf })
     end,
   })
@@ -69,6 +75,13 @@ local function create_autocmds()
     group = group,
     callback = function(args)
       require("dpview").sync_view({ bufnr = args.buf })
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = group,
+    callback = function(args)
+      require("dpview").sync_live_preview({ bufnr = args.buf })
     end,
   })
 
@@ -124,12 +137,25 @@ local function create_commands()
   vim.api.nvim_create_user_command("DPviewFileSyncToggle", function()
     require("dpview").set_file_sync_enabled(not state.config.editor_file_sync)
   end, {})
+
+  vim.api.nvim_create_user_command("DPviewLivePreviewEnable", function()
+    require("dpview").set_live_buffer_preview_enabled(true)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewLivePreviewDisable", function()
+    require("dpview").set_live_buffer_preview_enabled(false)
+  end, {})
+
+  vim.api.nvim_create_user_command("DPviewLivePreviewToggle", function()
+    require("dpview").set_live_buffer_preview_enabled(not state.config.live_buffer_preview)
+  end, {})
 end
 
 local function current_settings_payload()
   return {
     sidebar_collapsed = state.config.sidebar_collapsed,
     editor_file_sync_enabled = state.config.editor_file_sync,
+    live_buffer_preview_enabled = state.config.live_buffer_preview,
     seek_enabled = state.config.cursor_seek,
     typst_preview_theme = state.config.typst_preview_theme,
     markdown_frontmatter_visible = state.config.markdown_frontmatter_visible,
@@ -187,6 +213,10 @@ function M.sync_view(opts)
   sync.sync_seek(state, opts)
 end
 
+function M.sync_live_preview(opts)
+  sync.sync_live_preview(state, opts)
+end
+
 function M.start()
   server.start(state, function(ok, err)
     if not ok then
@@ -196,6 +226,7 @@ function M.start()
       return
     end
     sync.sync_current(state, { bufnr = 0, force_start = true, force_current = true })
+    sync.sync_live_preview(state, { bufnr = 0, immediate = true })
   end)
 end
 
@@ -218,6 +249,7 @@ function M.open()
     end
     server.open_browser(state)
     sync.sync_current(state, { bufnr = 0, force_start = true, force_current = true })
+    sync.sync_live_preview(state, { bufnr = 0, immediate = true })
   end)
 end
 
@@ -229,7 +261,9 @@ function M.status()
     ("auto_start: %s"):format(state.config.auto_start and "true" or "false"),
     ("sidebar_collapsed: %s"):format(state.config.sidebar_collapsed and "true" or "false"),
     ("editor_file_sync: %s"):format(state.config.editor_file_sync and "true" or "false"),
+    ("live_buffer_preview: %s"):format(state.config.live_buffer_preview and "true" or "false"),
     ("cursor_seek: %s"):format(state.config.cursor_seek and "true" or "false"),
+    ("live_buffer_preview_debounce_ms: %s"):format(tostring(state.config.live_buffer_preview_debounce_ms)),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
     ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
@@ -254,6 +288,12 @@ function M.set_file_sync_enabled(enabled)
   state.config.editor_file_sync = enabled and true or false
   sync_settings()
   notify(vim.log.levels.INFO, "DPview editor file sync " .. (state.config.editor_file_sync and "enabled" or "disabled"))
+end
+
+function M.set_live_buffer_preview_enabled(enabled)
+  state.config.live_buffer_preview = enabled and true or false
+  sync_settings()
+  notify(vim.log.levels.INFO, "DPview live buffer preview " .. (state.config.live_buffer_preview and "enabled" or "disabled"))
 end
 
 function M._state()

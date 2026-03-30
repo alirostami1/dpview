@@ -105,22 +105,70 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 
 	pattern := filepath.Join(renderDir, "page-{p}.svg")
 	compileSource := req.AbsPath
+	cleanupPaths := make([]string, 0, 2)
+	if req.Transient {
+		dir := filepath.Dir(req.AbsPath)
+		file, err := os.CreateTemp(dir, ".dpview-live-*.typ")
+		if err != nil {
+			return errPreview(req.Started, "internal_error", "Failed to create Typst live preview source", err.Error())
+		}
+		if _, err := file.Write(req.Source); err != nil {
+			file.Close()
+			os.Remove(file.Name())
+			return errPreview(req.Started, "internal_error", "Failed to write Typst live preview source", err.Error())
+		}
+		if err := file.Close(); err != nil {
+			os.Remove(file.Name())
+			return errPreview(req.Started, "internal_error", "Failed to close Typst live preview source", err.Error())
+		}
+		compileSource = file.Name()
+		cleanupPaths = append(cleanupPaths, compileSource)
+	}
 	root := req.Root
 	if root == "" {
 		root = filepath.Dir(req.AbsPath)
 	}
 	if req.Settings.TypstPreviewTheme {
-		wrapperDir, err := os.MkdirTemp(root, ".dpview-wrapper-*")
+		wrapper, err := os.CreateTemp(filepath.Dir(compileSource), ".dpview-wrapper-*.typ")
 		if err != nil {
-			return errPreview(req.Started, "internal_error", "Failed to create Typst wrapper directory", err.Error())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to create Typst theme wrapper", err.Error())
 		}
-		defer os.RemoveAll(wrapperDir)
-		wrapperPath := filepath.Join(wrapperDir, "dpview-wrapper.typ")
-		if err := os.WriteFile(wrapperPath, []byte(buildTypstWrapper(req.Info.Path, req.Settings)), 0o644); err != nil {
+		relInclude, err := filepath.Rel(root, compileSource)
+		if err != nil {
+			wrapper.Close()
+			_ = os.Remove(wrapper.Name())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to resolve Typst theme wrapper include", err.Error())
+		}
+		includePath := "/" + strings.TrimPrefix(filepath.ToSlash(relInclude), "/")
+		if _, err := wrapper.Write([]byte(buildTypstWrapper(includePath, req.Settings))); err != nil {
+			wrapper.Close()
+			_ = os.Remove(wrapper.Name())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
 			return errPreview(req.Started, "internal_error", "Failed to prepare Typst theme wrapper", err.Error())
 		}
-		compileSource = wrapperPath
+		if err := wrapper.Close(); err != nil {
+			_ = os.Remove(wrapper.Name())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to close Typst theme wrapper", err.Error())
+		}
+		compileSource = wrapper.Name()
+		cleanupPaths = append(cleanupPaths, compileSource)
 	}
+	defer func() {
+		for _, cleanupPath := range cleanupPaths {
+			_ = os.Remove(cleanupPath)
+		}
+	}()
 	_, stderr, err := r.runner.Run(ctx, r.status.Details["path"], "compile", "--root", root, compileSource, pattern)
 	if err != nil {
 		code := "typst_compile_failed"
@@ -178,7 +226,6 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 
 func buildTypstWrapper(sourcePath string, settings api.Settings) string {
 	theme := resolveTypstTheme(settings)
-	source := "/" + strings.TrimPrefix(filepath.ToSlash(sourcePath), "/")
 	return strings.Join([]string{
 		fmt.Sprintf("#let dpview-page = rgb(%q)", theme.Page),
 		fmt.Sprintf("#let dpview-text = rgb(%q)", theme.Text),
@@ -195,7 +242,7 @@ func buildTypstWrapper(sourcePath string, settings api.Settings) string {
 		"#show raw: set text(fill: dpview-code)",
 		"#show raw.where(block: true): set block(fill: dpview-code-fill, stroke: (paint: dpview-border, thickness: 0.6pt), inset: 10pt, radius: 6pt)",
 		"#show quote: set block(stroke: (left: (paint: dpview-quote, thickness: 2pt)), inset: (left: 10pt))",
-		fmt.Sprintf("#include %s", strconv.Quote(source)),
+		fmt.Sprintf("#include %s", strconv.Quote(filepath.ToSlash(sourcePath))),
 		"",
 	}, "\n")
 }

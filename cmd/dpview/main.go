@@ -56,6 +56,7 @@ func main() {
 	store.UpdateSettings(api.Settings{
 		SidebarCollapsed:            cfg.SidebarClosed,
 		EditorFileSyncEnabled:       cfg.EditorFileSync,
+		LiveBufferPreviewEnabled:    cfg.LiveBufferPreviewEnabled,
 		SeekEnabled:                 cfg.SeekEnabled,
 		TypstPreviewTheme:           cfg.TypstPreviewTheme,
 		MarkdownFrontMatterVisible:  cfg.MarkdownFrontMatterVisible,

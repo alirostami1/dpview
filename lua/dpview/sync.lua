@@ -84,6 +84,48 @@ local function post_current(state, relpath)
   end)
 end
 
+local function buffer_content(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, true)
+  local content = table.concat(lines, "\n")
+  if vim.bo[bufnr].endofline then
+    content = content .. "\n"
+  end
+  return content
+end
+
+local function post_live_preview(state, relpath, content, version)
+  http.request_json({
+    method = "POST",
+    host = state.config.host,
+    port = state.server.port,
+    path = "/api/live-preview",
+    body = vim.json.encode({
+      path = relpath,
+      origin = "editor",
+      content = content,
+      version = version,
+    }),
+  }, function(err, response, payload)
+    if err then
+      notify(state, vim.log.levels.ERROR, "failed to sync live preview: " .. err)
+      return
+    end
+
+    if response.status == 409 and payload and payload.error and payload.error.code == "live_buffer_preview_disabled" then
+      state.config.live_buffer_preview = false
+      return
+    end
+    if response.status == 409 and payload and payload.error and payload.error.code == "stale_live_preview" then
+      return
+    end
+    if response.status ~= 200 or not payload or payload.ok ~= true then
+      notify(state, vim.log.levels.ERROR, "dpview rejected the live buffer preview")
+      return
+    end
+    state.server.current_path = relpath
+  end)
+end
+
 local function current_seek_payload(state, bufnr)
   if state.config.cursor_seek == false then
     return nil
@@ -182,6 +224,57 @@ function M.sync_seek(state, opts)
     end
     post_seek(state, payload)
   end, state.config.cursor_seek_debounce_ms or 80)
+end
+
+function M.sync_live_preview(state, opts)
+  opts = opts or {}
+  if state.config.editor_file_sync == false or state.config.live_buffer_preview == false then
+    return
+  end
+
+  local bufnr = opts.bufnr or 0
+  local relpath = M.previewable_path(state, bufnr)
+  if not relpath then
+    return
+  end
+
+  local content = buffer_content(bufnr)
+  state.live.seq = (state.live.seq or 0) + 1
+  local version = state.live.seq
+  local function send_if_current()
+    if version ~= state.live.seq then
+      return
+    end
+
+    local function send_preview()
+      post_live_preview(state, relpath, content, version)
+    end
+
+    if server.is_running(state) then
+      send_preview()
+      return
+    end
+    if not state.config.auto_start then
+      return
+    end
+
+    server.start(state, function(ok, err)
+      if not ok then
+        if err then
+          notify(state, vim.log.levels.ERROR, err)
+        end
+        return
+      end
+      send_preview()
+    end)
+  end
+
+  if opts.immediate then
+    send_if_current()
+    return
+  end
+
+  vim.defer_fn(send_if_current, state.config.live_buffer_preview_debounce_ms or 200)
 end
 
 return M

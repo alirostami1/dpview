@@ -18,6 +18,7 @@ export interface SettingsPayload {
     auto_refresh_paused: boolean;
     sidebar_collapsed: boolean;
     editor_file_sync_enabled: boolean;
+    live_buffer_preview_enabled: boolean;
     seek_enabled: boolean;
     typst_preview_theme: boolean;
     markdown_frontmatter_visible: boolean;
@@ -31,6 +32,7 @@ export const settingsPayloadSchema: z.ZodType<SettingsPayload> = z.object({
     auto_refresh_paused: z.boolean(),
     sidebar_collapsed: z.boolean(),
     editor_file_sync_enabled: z.boolean(),
+    live_buffer_preview_enabled: z.boolean(),
     seek_enabled: z.boolean(),
     typst_preview_theme: z.boolean(),
     markdown_frontmatter_visible: z.boolean(),

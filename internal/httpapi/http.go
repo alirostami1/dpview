@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"codeberg.org/aros/dpview/internal/api"
+	"codeberg.org/aros/dpview/internal/app"
 	"codeberg.org/aros/dpview/internal/state"
 )
 
 type Application interface {
 	SetCurrent(context.Context, string, string) (api.CurrentData, int, *api.Error)
+	SetLivePreview(context.Context, app.LivePreviewRequest) (api.CurrentData, int, *api.Error)
 	Refresh(context.Context) (api.CurrentData, int, *api.Error)
 	ClearCurrent() api.CurrentData
 	SetSeek(context.Context, api.SeekData) (api.SeekData, int, *api.Error)
@@ -36,6 +38,13 @@ type Server struct {
 type CurrentRequest struct {
 	Path   string `json:"path"`
 	Origin string `json:"origin"`
+}
+
+type LivePreviewRequest struct {
+	Path    string `json:"path"`
+	Origin  string `json:"origin"`
+	Content string `json:"content"`
+	Version int64  `json:"version"`
 }
 
 type SeekRequest struct {
@@ -64,6 +73,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/files", s.handleFiles)
 	mux.HandleFunc("GET /api/current", s.handleCurrent)
 	mux.HandleFunc("POST /api/current", s.handleSetCurrent)
+	mux.HandleFunc("POST /api/live-preview", s.handleSetLivePreview)
 	mux.HandleFunc("DELETE /api/current", s.handleDeleteCurrent)
 	mux.HandleFunc("GET /api/seek", s.handleSeek)
 	mux.HandleFunc("POST /api/seek", s.handleSetSeek)
@@ -130,6 +140,25 @@ func (s *Server) handleSetCurrent(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeleteCurrent(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, api.OK(s.app.ClearCurrent()))
+}
+
+func (s *Server) handleSetLivePreview(w http.ResponseWriter, r *http.Request) {
+	var req LivePreviewRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeDecodeError(w, err)
+		return
+	}
+	resp, status, err := s.app.SetLivePreview(r.Context(), app.LivePreviewRequest{
+		Path:    req.Path,
+		Origin:  req.Origin,
+		Content: []byte(req.Content),
+		Version: req.Version,
+	})
+	if err != nil {
+		writeJSON(w, status, api.Fail(err))
+		return
+	}
+	writeJSON(w, status, api.OK(resp))
 }
 
 func (s *Server) handleSetSeek(w http.ResponseWriter, r *http.Request) {

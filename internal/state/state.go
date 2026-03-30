@@ -19,18 +19,20 @@ type Snapshot struct {
 }
 
 type Store struct {
-	mu       sync.RWMutex
-	version  int64
-	eventID  int64
-	files    []files.FileInfo
-	tree     []files.TreeNode
-	current  *files.FileInfo
-	preview  api.Preview
-	origin   string
-	seek     api.SeekData
-	settings api.Settings
-	logs     []api.LogEntry
-	subs     map[chan api.Event]struct{}
+	mu            sync.RWMutex
+	version       int64
+	eventID       int64
+	files         []files.FileInfo
+	tree          []files.TreeNode
+	current       *files.FileInfo
+	preview       api.Preview
+	origin        string
+	transient     bool
+	sourceVersion int64
+	seek          api.SeekData
+	settings      api.Settings
+	logs          []api.LogEntry
+	subs          map[chan api.Event]struct{}
 }
 
 const maxLogEntries = 100
@@ -42,6 +44,7 @@ func NewStore() *Store {
 		settings: api.Settings{
 			SidebarCollapsed:            false,
 			EditorFileSyncEnabled:       true,
+			LiveBufferPreviewEnabled:    false,
 			SeekEnabled:                 true,
 			TypstPreviewTheme:           true,
 			MarkdownFrontMatterVisible:  true,
@@ -79,7 +82,7 @@ func (s *Store) SetFiles(items []files.FileInfo, tree []files.TreeNode) api.File
 	return data
 }
 
-func (s *Store) SetCurrent(info *files.FileInfo, preview api.Preview, origin string, selectionChanged bool) api.CurrentData {
+func (s *Store) SetCurrent(info *files.FileInfo, preview api.Preview, origin string, selectionChanged bool, transient bool, sourceVersion int64) api.CurrentData {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.version++
@@ -91,6 +94,8 @@ func (s *Store) SetCurrent(info *files.FileInfo, preview api.Preview, origin str
 	}
 	s.preview = preview
 	s.origin = origin
+	s.transient = transient
+	s.sourceVersion = sourceVersion
 	data := s.currentDataLocked()
 	if selectionChanged {
 		s.emitLocked(api.EventCurrentChanged, data)
@@ -109,10 +114,10 @@ func (s *Store) ClearCurrent(err *api.Error, origin string) api.CurrentData {
 		UpdatedAt: time.Now().UTC(),
 		Error:     err,
 	}
-	return s.SetCurrent(nil, preview, origin, true)
+	return s.SetCurrent(nil, preview, origin, true, false, 0)
 }
 
-func (s *Store) PublishRenderStarted(info *files.FileInfo) api.Event {
+func (s *Store) PublishRenderStarted(info *files.FileInfo, transient bool, sourceVersion int64) api.Event {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.eventID++
@@ -121,12 +126,14 @@ func (s *Store) PublishRenderStarted(info *files.FileInfo) api.Event {
 		UpdatedAt: time.Now().UTC(),
 	}
 	payload := api.CurrentData{
-		File:    cloneFileInfo(info),
-		Preview: preview,
-		Version: s.version,
-		EventID: s.eventID,
-		Current: info != nil,
-		Origin:  s.origin,
+		File:          cloneFileInfo(info),
+		Preview:       preview,
+		Version:       s.version,
+		EventID:       s.eventID,
+		Current:       info != nil,
+		Origin:        s.origin,
+		Transient:     transient,
+		SourceVersion: sourceVersion,
 	}
 	event := api.Event{
 		Type:    api.EventRenderStarted,
@@ -244,12 +251,14 @@ func (s *Store) filesDataLocked() api.FilesData {
 
 func (s *Store) currentDataLocked() api.CurrentData {
 	return api.CurrentData{
-		File:    cloneFileInfo(s.current),
-		Preview: s.preview,
-		Version: s.version,
-		EventID: s.eventID,
-		Current: s.current != nil,
-		Origin:  s.origin,
+		File:          cloneFileInfo(s.current),
+		Preview:       s.preview,
+		Version:       s.version,
+		EventID:       s.eventID,
+		Current:       s.current != nil,
+		Origin:        s.origin,
+		Transient:     s.transient,
+		SourceVersion: s.sourceVersion,
 	}
 }
 
@@ -311,6 +320,9 @@ func applySettingsPatch(settings *api.Settings, patch api.SettingsPatch) {
 	}
 	if patch.EditorFileSyncEnabled != nil {
 		settings.EditorFileSyncEnabled = *patch.EditorFileSyncEnabled
+	}
+	if patch.LiveBufferPreviewEnabled != nil {
+		settings.LiveBufferPreviewEnabled = *patch.LiveBufferPreviewEnabled
 	}
 	if patch.SeekEnabled != nil {
 		settings.SeekEnabled = *patch.SeekEnabled

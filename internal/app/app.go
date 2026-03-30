@@ -25,12 +25,32 @@ type Service struct {
 	renderer *render.Service
 	store    *state.Store
 
-	mu             sync.Mutex
-	watcherEnabled atomic.Bool
+	mu                sync.Mutex
+	watcherEnabled    atomic.Bool
+	activeLivePreview *livePreviewState
+	latestLivePreview map[string]int64
+}
+
+type livePreviewState struct {
+	path          string
+	content       []byte
+	sourceVersion int64
+}
+
+type LivePreviewRequest struct {
+	Path    string
+	Origin  string
+	Content []byte
+	Version int64
 }
 
 func New(files *files.Service, renderer *render.Service, store *state.Store) *Service {
-	return &Service{files: files, renderer: renderer, store: store}
+	return &Service{
+		files:             files,
+		renderer:          renderer,
+		store:             store,
+		latestLivePreview: make(map[string]int64),
+	}
 }
 
 func (s *Service) Snapshot() state.Snapshot {
@@ -68,16 +88,75 @@ func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.Curre
 		s.logAPIError("current", apiErr, rel, "resolve current path")
 		return api.CurrentData{}, status, apiErr
 	}
-	s.store.PublishRenderStarted(&info)
-	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	selectionChanged := s.currentPath() != info.Path
+	if selectionChanged {
+		s.clearActiveLivePreviewExcept(info.Path)
+	}
+	live := s.activeLivePreviewForPath(info.Path)
+	transient := live != nil
+	sourceVersion := int64(0)
+	if live != nil {
+		sourceVersion = live.sourceVersion
+	}
+	s.store.PublishRenderStarted(&info, transient, sourceVersion)
+	var preview api.Preview
+	if live != nil {
+		preview = s.renderer.RenderSource(ctx, info, abs, live.content, s.store.Snapshot().Settings.Settings, true)
+	} else {
+		preview = s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	}
 	if preview.Error != nil {
 		s.logPreviewError("render", info.Path, preview.Error)
 	}
-	selectionChanged := s.currentPath() != info.Path
 	if origin == "" {
 		origin = "api"
 	}
-	return s.store.SetCurrent(&info, preview, origin, selectionChanged), http.StatusOK, nil
+	return s.store.SetCurrent(&info, preview, origin, selectionChanged, transient, sourceVersion), http.StatusOK, nil
+}
+
+func (s *Service) SetLivePreview(ctx context.Context, req LivePreviewRequest) (api.CurrentData, int, *api.Error) {
+	settings := s.store.Snapshot().Settings.Settings
+	if !settings.EditorFileSyncEnabled {
+		err := api.NewError("editor_file_sync_disabled", "Editor-driven file sync is disabled", "")
+		s.logAPIError("live_preview", err, req.Path, "editor file sync disabled")
+		return api.CurrentData{}, http.StatusConflict, err
+	}
+	if !settings.LiveBufferPreviewEnabled {
+		err := api.NewError("live_buffer_preview_disabled", "Live buffer preview is disabled", "")
+		s.logAPIError("live_preview", err, req.Path, "live buffer preview disabled")
+		return api.CurrentData{}, http.StatusConflict, err
+	}
+	if req.Version <= 0 {
+		err := api.NewError("invalid_version", "Live preview version must be greater than zero", "")
+		s.logAPIError("live_preview", err, req.Path, "invalid live preview version")
+		return api.CurrentData{}, http.StatusBadRequest, err
+	}
+
+	abs, info, apiErr, status := s.resolvePath(req.Path)
+	if apiErr != nil {
+		s.logAPIError("live_preview", apiErr, req.Path, "resolve live preview path")
+		return api.CurrentData{}, status, apiErr
+	}
+	if !s.reserveLivePreviewVersion(info.Path, req.Version) {
+		err := api.NewError("stale_live_preview", "A newer live preview update already exists", info.Path)
+		return s.store.Snapshot().Current, http.StatusConflict, err
+	}
+
+	selectionChanged := s.currentPath() != info.Path
+	s.store.PublishRenderStarted(&info, true, req.Version)
+	preview := s.renderer.RenderSource(ctx, info, abs, req.Content, settings, true)
+	if preview.Error != nil {
+		s.logPreviewError("live_preview", info.Path, preview.Error)
+	}
+	if !s.isLatestLivePreviewVersion(info.Path, req.Version) {
+		err := api.NewError("stale_live_preview", "Discarded an outdated live preview update", info.Path)
+		return s.store.Snapshot().Current, http.StatusConflict, err
+	}
+	s.setActiveLivePreview(info.Path, req.Content, req.Version)
+	if req.Origin == "" {
+		req.Origin = "editor"
+	}
+	return s.store.SetCurrent(&info, preview, req.Origin, selectionChanged, true, req.Version), http.StatusOK, nil
 }
 
 func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error) {
@@ -97,15 +176,27 @@ func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error
 		s.logAPIError("refresh", apiErr, current.Path, "refresh resolve failed")
 		return api.CurrentData{}, status, apiErr
 	}
-	s.store.PublishRenderStarted(&info)
-	preview := s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	live := s.activeLivePreviewForPath(info.Path)
+	transient := live != nil
+	sourceVersion := int64(0)
+	if live != nil {
+		sourceVersion = live.sourceVersion
+	}
+	s.store.PublishRenderStarted(&info, transient, sourceVersion)
+	var preview api.Preview
+	if live != nil {
+		preview = s.renderer.RenderSource(ctx, info, abs, live.content, s.store.Snapshot().Settings.Settings, true)
+	} else {
+		preview = s.renderer.Render(ctx, info, abs, s.store.Snapshot().Settings.Settings)
+	}
 	if preview.Error != nil {
 		s.logPreviewError("render", info.Path, preview.Error)
 	}
-	return s.store.SetCurrent(&info, preview, "refresh", false), http.StatusOK, nil
+	return s.store.SetCurrent(&info, preview, "refresh", false, transient, sourceVersion), http.StatusOK, nil
 }
 
 func (s *Service) ClearCurrent() api.CurrentData {
+	s.clearActiveLivePreviewExcept("")
 	return s.store.ClearCurrent(api.NewError("no_current_file", "Current file cleared", ""), "api")
 }
 
@@ -142,6 +233,12 @@ func (s *Service) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData 
 	data := s.store.PatchSettings(patch)
 	if previous.SeekEnabled && patch.SeekEnabled != nil && !*patch.SeekEnabled {
 		s.store.ClearSeek("settings")
+	}
+	if previous.LiveBufferPreviewEnabled && patch.LiveBufferPreviewEnabled != nil && !*patch.LiveBufferPreviewEnabled {
+		s.clearActiveLivePreviewExcept("")
+		if current := s.store.Snapshot().Current; current.Current && current.Transient {
+			_, _, _ = s.Refresh(context.Background())
+		}
 	}
 	return data
 }
@@ -192,6 +289,7 @@ func (s *Service) HandleWatchEvents(events []watch.Event) {
 		if _, _, err := s.files.Resolve(current.Path); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				s.logInternalError("watcher", "current file removed", err, current.Path)
+				s.clearActiveLivePreviewExcept("")
 				s.store.ClearCurrent(api.NewError("file_not_found", "Current file no longer exists", current.Path), "watch")
 				return
 			}
@@ -281,6 +379,55 @@ func normalizeSeek(path string, seek api.SeekData) api.SeekData {
 		BottomLine: bottom,
 		FocusLine:  focus,
 	}
+}
+
+func (s *Service) reserveLivePreviewVersion(path string, version int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if current := s.latestLivePreview[path]; version <= current {
+		return false
+	}
+	s.latestLivePreview[path] = version
+	return true
+}
+
+func (s *Service) isLatestLivePreviewVersion(path string, version int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.latestLivePreview[path] == version
+}
+
+func (s *Service) activeLivePreviewForPath(path string) *livePreviewState {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeLivePreview == nil || s.activeLivePreview.path != path {
+		return nil
+	}
+	copyState := *s.activeLivePreview
+	copyState.content = append([]byte(nil), s.activeLivePreview.content...)
+	return &copyState
+}
+
+func (s *Service) setActiveLivePreview(path string, content []byte, version int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activeLivePreview = &livePreviewState{
+		path:          path,
+		content:       append([]byte(nil), content...),
+		sourceVersion: version,
+	}
+}
+
+func (s *Service) clearActiveLivePreviewExcept(path string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeLivePreview == nil {
+		return
+	}
+	if path != "" && s.activeLivePreview.path == path {
+		return
+	}
+	s.activeLivePreview = nil
 }
 
 func (s *Service) logAPIError(source string, err *api.Error, path string, context string) {
