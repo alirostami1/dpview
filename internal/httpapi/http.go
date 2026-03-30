@@ -44,6 +44,7 @@ type SeekRequest struct {
 	Column     int    `json:"column"`
 	TopLine    int    `json:"top_line"`
 	BottomLine int    `json:"bottom_line"`
+	FocusLine  int    `json:"focus_line"`
 }
 
 type SettingsRequest = api.SettingsPatch
@@ -143,6 +144,7 @@ func (s *Server) handleSetSeek(w http.ResponseWriter, r *http.Request) {
 		Column:     req.Column,
 		TopLine:    req.TopLine,
 		BottomLine: req.BottomLine,
+		FocusLine:  req.FocusLine,
 	})
 	if err != nil {
 		writeJSON(w, status, api.Fail(err))

@@ -253,16 +253,20 @@ func normalizeSeek(path string, seek api.SeekData) api.SeekData {
 	column := clampSeekValue(seek.Column)
 	top := clampSeekValue(seek.TopLine)
 	bottom := clampSeekValue(seek.BottomLine)
+	focus := clampSeekValue(seek.FocusLine)
 	if top > 0 && bottom > 0 && bottom < top {
 		top, bottom = bottom, top
 	}
 
-	focus := 0
 	switch {
-	case top > 0 && bottom > 0:
-		focus = top + (bottom-top)/2
+	case focus > 0:
+		// Prefer the editor cursor line when it is available. This lets the
+		// preview align around the actual cursor position instead of the center
+		// of the current Neovim viewport.
 	case line > 0:
 		focus = line
+	case top > 0 && bottom > 0:
+		focus = top + (bottom-top)/2
 	case top > 0:
 		focus = top
 	case bottom > 0:

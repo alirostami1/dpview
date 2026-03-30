@@ -149,7 +149,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("POST /api/current unknown field status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodPost, "/api/seek", `{"path":"notes/test.md","line":12,"top_line":8,"bottom_line":16}`)
+	resp = performRequest(t, handler, http.MethodPost, "/api/seek", `{"path":"notes/test.md","line":12,"top_line":8,"bottom_line":16,"focus_line":12}`)
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusConflict || !strings.Contains(body, `"code":"current_mismatch"`) {
 		t.Fatalf("POST /api/seek status=%d body=%s", resp.StatusCode, body)

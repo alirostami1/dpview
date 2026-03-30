@@ -103,6 +103,7 @@ local function current_seek_payload(state, bufnr)
     column = cursor[2] + 1,
     top_line = vim.fn.line("w0", win),
     bottom_line = vim.fn.line("w$", win),
+    focus_line = cursor[1],
   }
 end
 

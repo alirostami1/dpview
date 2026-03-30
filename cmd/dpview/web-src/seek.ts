@@ -3,6 +3,8 @@ import type { CurrentData, Preview, SeekData, Settings } from "./types";
 /** Active scroller used for preview seeking. */
 export type ScrollContainer = HTMLElement;
 
+const SEEK_VIEWPORT_ANCHOR = 0.5;
+
 /** Candidate preview element used for Markdown source-line seeking. */
 interface MarkdownSeekCandidate {
   /** DOM node carrying source line metadata. */
@@ -140,7 +142,10 @@ function applyTypstSeek(
   }
   const progress =
     totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
-  setScrollContainerTop(scrollContainer, progress * scrollRange);
+  const targetTop =
+    (progress * getScrollContainerHeight(scrollContainer)) -
+    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(scrollRange, targetTop)));
 }
 
 /**
@@ -205,7 +210,7 @@ function scrollPreviewToLine(
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * 0.32);
+    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
@@ -239,7 +244,7 @@ function scrollPreviewBetweenCandidates(
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * 0.32);
+    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
