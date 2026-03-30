@@ -34,6 +34,20 @@ npm install
 make build
 ```
 
+To install the latest GitHub release for your current OS and architecture:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alirostami1/dpview/main/scripts/install.sh | sh
+```
+
+The installer places `dpview` in `~/.local/bin` by default and creates that
+directory if it does not exist. Override the target directory like this:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alirostami1/dpview/main/scripts/install.sh | \
+  DPVIEW_INSTALL_DIR="$HOME/bin" sh
+```
+
 ## Run
 
 ```bash
