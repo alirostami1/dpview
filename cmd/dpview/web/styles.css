@@ -540,13 +540,10 @@ body[data-theme="dark"] .status-item-error {
     inset: 0;
     z-index: 20;
     border-right: 0;
-    transform: translateX(0);
-    transition: transform 160ms ease;
   }
 
   .app.sidebar-collapsed .sidebar {
-    display: flex;
-    transform: translateX(-100%);
+    display: none;
   }
 
   .show-sidebar {

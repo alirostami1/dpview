@@ -83,6 +83,8 @@ declare const renderMathInElement:
 
 const systemThemeMedia =
     window.matchMedia?.("(prefers-color-scheme: dark)") || null;
+const mobileLayoutMedia =
+    window.matchMedia?.("(max-width: 800px)") || null;
 
 const elements: Elements = {
     appEl: requiredSelector<HTMLDivElement>(".app"),
@@ -168,6 +170,10 @@ bindUIEvents();
 void bootstrap();
 
 function initializeUI(): void {
+    if (isMobileLayout()) {
+        state.sidebarCollapsed = true;
+        state.settings.sidebar_collapsed = true;
+    }
     elements.searchInput.value = state.search;
     elements.themeSelect.value = state.theme;
     elements.previewThemeSelect.value = state.previewTheme;
@@ -392,6 +398,14 @@ function bindUIEvents(): void {
             }
         });
     }
+    if (mobileLayoutMedia) {
+        mobileLayoutMedia.addEventListener("change", () => {
+            if (!isMobileLayout()) {
+                return;
+            }
+            updateSidebarCollapsedLocal(true);
+        });
+    }
 }
 
 async function bootstrap(): Promise<void> {
@@ -453,15 +467,11 @@ function resolveThemeMode(theme: StoredTheme): ResolvedTheme {
         : theme;
 }
 
-function applyTheme(theme: StoredTheme): void {
-    document.body.dataset.theme = resolveThemeMode(theme);
+function isMobileLayout(): boolean {
+    return mobileLayoutMedia?.matches === true;
 }
 
-function applyMarkdownTheme(theme: string): void {
-    elements.markdownThemeCSS.href = `/themes/markdown/${theme}.css`;
-}
-
-function updateSidebarCollapsed(collapsed: boolean): void {
+function updateSidebarCollapsedLocal(collapsed: boolean): void {
     const activeElement = document.activeElement;
     setSidebarCollapsed(state, collapsed);
     renderSidebarShell(elements, state);
@@ -472,6 +482,18 @@ function updateSidebarCollapsed(collapsed: boolean): void {
     ) {
         requestAnimationFrame(() => elements.showSidebarButton.focus());
     }
+}
+
+function applyTheme(theme: StoredTheme): void {
+    document.body.dataset.theme = resolveThemeMode(theme);
+}
+
+function applyMarkdownTheme(theme: string): void {
+    elements.markdownThemeCSS.href = `/themes/markdown/${theme}.css`;
+}
+
+function updateSidebarCollapsed(collapsed: boolean): void {
+    updateSidebarCollapsedLocal(collapsed);
     if (!collapsed) {
         requestAnimationFrame(() => {
             if (state.sidebarMode === "settings") {
@@ -659,7 +681,12 @@ function applySeek(data: typeof seekDataSchema._output | null): void {
 }
 
 function applySettings(data: SettingsData): void {
+    const previousSidebarCollapsed = state.sidebarCollapsed;
     applySettingsState(state, data, readStoredString(STORAGE.theme, storedThemeSchema, "system"));
+    if (isMobileLayout() && data.settings.sidebar_collapsed === false && previousSidebarCollapsed) {
+        state.sidebarCollapsed = true;
+        state.settings.sidebar_collapsed = true;
+    }
     state.bootstrapFailed = false;
     applyTheme(state.theme);
     applyMarkdownTheme(state.previewTheme);
@@ -706,6 +733,9 @@ async function setCurrent(path: string): Promise<void> {
     }
     clearClientError();
     applyCurrent(result.data);
+    if (isMobileLayout()) {
+        updateSidebarCollapsed(true);
+    }
     navigateToFilePath(path, { replace: true });
 }
 
