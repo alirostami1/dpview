@@ -1,4 +1,4 @@
-import type { ConnectionStatus, State } from "./model";
+import type { ConnectionStatus, SidebarMode, State } from "./model";
 import { previewThemeSchema } from "./local-types";
 import type {
     CurrentData,
@@ -103,4 +103,9 @@ export function setPreviewThemePreference(state: State, previewTheme: PreviewThe
 export function setSidebarCollapsed(state: State, collapsed: boolean): void {
     state.sidebarCollapsed = collapsed;
     state.settings.sidebar_collapsed = collapsed;
+}
+
+/** Updates the active sidebar mode. */
+export function setSidebarMode(state: State, mode: SidebarMode): void {
+    state.sidebarMode = mode;
 }

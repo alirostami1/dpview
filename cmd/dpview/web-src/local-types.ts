@@ -12,9 +12,7 @@ export const storedThemeSchema = z.enum(storedThemes);
 export const resolvedThemeSchema = z.enum(resolvedThemes);
 export const previewThemeSchema = z.enum(previewThemes);
 
-export type Route =
-    | { kind: "settings" }
-    | { kind: "file"; path: string };
+export type Route = { kind: "file"; path: string };
 
 export interface SettingsPayload {
     auto_refresh_paused: boolean;

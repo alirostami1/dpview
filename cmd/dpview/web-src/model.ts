@@ -13,8 +13,11 @@ import type {
 /** Current SSE/live-update connectivity state. */
 export type ConnectionStatus = "connecting" | "live" | "degraded";
 
+/** Active sidebar panel content. */
+export type SidebarMode = "files" | "settings";
+
 /** Main shell page currently visible in the app. */
-export type Page = "file" | "settings" | "not-found";
+export type Page = "file" | "not-found";
 
 /** Central client-side state for the embedded DPview web app. */
 export interface State {
@@ -42,6 +45,8 @@ export interface State {
     previewTheme: PreviewTheme;
     /** Whether the sidebar is collapsed in the shell. */
     sidebarCollapsed: boolean;
+    /** Active content shown in the sidebar. */
+    sidebarMode: SidebarMode;
     /** Remembered front matter disclosure state for the active file. */
     frontMatterExpanded: boolean | null;
     /** Tracks user-initiated selection changes until the server confirms them. */
@@ -83,6 +88,10 @@ export interface Elements {
     logsEl: HTMLElement;
     clearLogsButton: HTMLButtonElement;
     searchInput: HTMLInputElement;
+    sidebarFilesTab: HTMLButtonElement;
+    sidebarSettingsTab: HTMLButtonElement;
+    sidebarFilesViewEl: HTMLElement;
+    sidebarSettingsViewEl: HTMLElement;
     pauseRefreshInput: HTMLInputElement;
     themeSelect: HTMLSelectElement;
     previewThemeSelect: HTMLSelectElement;
@@ -92,14 +101,11 @@ export interface Elements {
     markdownFrontMatterVisibleInput: HTMLInputElement;
     markdownFrontMatterExpandedInput: HTMLInputElement;
     markdownFrontMatterTitleInput: HTMLInputElement;
-    openSettingsButton: HTMLButtonElement;
-    closeSettingsButton: HTMLButtonElement;
     toggleSidebarButton: HTMLButtonElement;
     showSidebarButton: HTMLButtonElement;
     goHomeButton: HTMLButtonElement;
     notFoundMessageEl: HTMLElement;
     fileViewEl: HTMLElement;
-    settingsViewEl: HTMLElement;
     notFoundViewEl: HTMLElement;
 }
 

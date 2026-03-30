@@ -1,5 +1,5 @@
 :root {
-  --sidebar-width: 280px;
+  --sidebar-width: 380px;
   --border: #d0d0d0;
   --text: #111;
   --muted: #666;
@@ -81,10 +81,14 @@ select {
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--border);
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   font-size: 0.95rem;
   line-height: 1.4;
+  background: var(--background);
 }
 
 .app.sidebar-collapsed .sidebar {
@@ -104,7 +108,7 @@ select {
 .sidebar-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.5rem;
 }
 
@@ -117,7 +121,29 @@ select {
   flex: 0 0 auto;
 }
 
+.sidebar-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.sidebar-mode-button.active {
+  background: var(--selected);
+  font-weight: 600;
+}
+
+.sidebar-view {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sidebar-search-shell {
+  padding: 0.75rem 0.75rem 0;
+}
+
 .tree {
+  height: 100%;
+  overflow: auto;
   padding: 0.5rem;
 }
 
@@ -158,6 +184,8 @@ select {
 }
 
 .main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   position: relative;
@@ -165,7 +193,8 @@ select {
 }
 
 .panel {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -340,23 +369,14 @@ body[data-theme="dark"] .connection-banner {
 }
 
 .settings-shell {
-  width: min(960px, 100%);
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-
-.settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  padding: 0.75rem;
 }
 
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
+.settings-shell-sidebar {
+  height: 100%;
+  overflow: auto;
 }
 
 .settings-block-header {
@@ -367,7 +387,6 @@ body[data-theme="dark"] .connection-banner {
   margin-bottom: 1rem;
 }
 
-.settings-header h1,
 .settings-block h2 {
   margin: 0;
   font-size: 1rem;
@@ -512,55 +531,31 @@ body[data-theme="dark"] .status-item-error {
 }
 
 @media (max-width: 800px) {
-  body {
-    overflow-y: auto;
-  }
-
   .app {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100vh;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
-    max-height: 40vh;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    transform: translateX(0);
+    transition: transform 160ms ease;
   }
 
   .app.sidebar-collapsed .sidebar {
-    display: none;
-  }
-
-  .main {
-    overflow: visible;
-  }
-
-  .panel {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
+    display: flex;
+    transform: translateX(-100%);
   }
 
   .show-sidebar {
-    position: static;
-    margin: 0.75rem 0 0 1rem;
+    position: absolute;
+    top: 0.75rem;
+    left: 1rem;
   }
 
   .connection-banner {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .settings-shell {
-    padding: 1rem;
-  }
-
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-header {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -578,10 +573,6 @@ body[data-theme="dark"] .status-item-error {
 
   .log-entry-time {
     font-size: 0.85em;
-  }
-
-  .settings-header button {
-    width: 100%;
   }
 
   .settings-block-header button {

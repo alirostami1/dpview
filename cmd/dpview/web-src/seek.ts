@@ -1,5 +1,8 @@
 import type { CurrentData, Preview, SeekData, Settings } from "./types";
 
+/** Active scroller used for preview seeking. */
+export type ScrollContainer = HTMLElement;
+
 /** Candidate preview element used for Markdown source-line seeking. */
 interface MarkdownSeekCandidate {
   /** DOM node carrying source line metadata. */
@@ -15,14 +18,14 @@ interface MarkdownSeekCandidate {
 /**
  * Applies editor seek state to the current preview when possible.
  *
- * @param fileViewEl Scroll container for the current file view.
+ * @param scrollContainer Active scroll container for the current file view.
  * @param previewEl Root preview element.
  * @param current Current file/preview snapshot.
  * @param seek Current seek position snapshot.
  * @param settings Active settings snapshot.
  */
 export function applyPreviewSeek(
-  fileViewEl: HTMLElement,
+  scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
   current: CurrentData | null,
   seek: SeekData | null,
@@ -41,23 +44,23 @@ export function applyPreviewSeek(
   }
 
   if (file.kind === "markdown") {
-    applyMarkdownSeek(fileViewEl, previewEl, seek);
+    applyMarkdownSeek(scrollContainer, previewEl, seek);
     return;
   }
   if (file.kind === "typst") {
-    applyTypstSeek(fileViewEl, seek, preview);
+    applyTypstSeek(scrollContainer, seek, preview);
   }
 }
 
 /**
  * Aligns a Markdown preview to the best matching source line block.
  *
- * @param fileViewEl Scroll container for the preview.
+ * @param scrollContainer Active scroll container for the preview.
  * @param previewEl Root preview element.
  * @param seek Current seek position snapshot.
  */
 function applyMarkdownSeek(
-  fileViewEl: HTMLElement,
+  scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
   seek: SeekData,
 ): void {
@@ -88,7 +91,7 @@ function applyMarkdownSeek(
       }
       return candidate.depth > best.depth ? candidate : best;
     }, null);
-    scrollPreviewToLine(fileViewEl, target, focusLine);
+    scrollPreviewToLine(scrollContainer, target, focusLine);
     return;
   }
 
@@ -106,22 +109,22 @@ function applyMarkdownSeek(
     );
 
   if (before && after) {
-    scrollPreviewBetweenCandidates(fileViewEl, before, after, focusLine);
+    scrollPreviewBetweenCandidates(scrollContainer, before, after, focusLine);
     return;
   }
 
-  scrollPreviewToLine(fileViewEl, before || after, focusLine);
+  scrollPreviewToLine(scrollContainer, before || after, focusLine);
 }
 
 /**
  * Aligns a Typst preview proportionally using source line progress.
  *
- * @param fileViewEl Scroll container for the preview.
+ * @param scrollContainer Active scroll container for the preview.
  * @param seek Current seek position snapshot.
  * @param preview Current preview data.
  */
 function applyTypstSeek(
-  fileViewEl: HTMLElement,
+  scrollContainer: ScrollContainer,
   seek: SeekData,
   preview: Preview,
 ): void {
@@ -130,13 +133,14 @@ function applyTypstSeek(
   if (!focusLine || !totalLines) {
     return;
   }
-  const scrollRange = fileViewEl.scrollHeight - fileViewEl.clientHeight;
+  const scrollRange =
+    getScrollContainerHeight(scrollContainer) - getScrollContainerViewportHeight(scrollContainer);
   if (scrollRange <= 0) {
     return;
   }
   const progress =
     totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
-  fileViewEl.scrollTo({ top: progress * scrollRange, behavior: "auto" });
+  setScrollContainerTop(scrollContainer, progress * scrollRange);
 }
 
 /**
@@ -182,48 +186,49 @@ function countNodeDepth(node: HTMLElement): number {
 /**
  * Scrolls the preview so a specific source line lands at the target reading position.
  *
- * @param fileViewEl Scroll container for the preview.
+ * @param scrollContainer Active scroll container for the preview.
  * @param candidate Best matching preview node.
  * @param line Source line to align.
  */
 function scrollPreviewToLine(
-  fileViewEl: HTMLElement,
+  scrollContainer: ScrollContainer,
   candidate: MarkdownSeekCandidate | null,
   line: number,
 ): void {
   if (!candidate) {
     return;
   }
-  const containerRect = fileViewEl.getBoundingClientRect();
   const nodeRect = candidate.node.getBoundingClientRect();
   const span = Math.max(1, candidate.end - candidate.start);
   const progress = Math.max(0, Math.min(1, (line - candidate.start) / span));
   const targetPoint = nodeRect.top + (nodeRect.height * progress);
   const targetTop =
-    fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
-  const maxTop = Math.max(0, fileViewEl.scrollHeight - fileViewEl.clientHeight);
-  fileViewEl.scrollTo({
-    top: Math.max(0, Math.min(maxTop, targetTop)),
-    behavior: "auto",
-  });
+    getScrollContainerTop(scrollContainer) +
+    (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
+    (getScrollContainerViewportHeight(scrollContainer) * 0.32);
+  const maxTop = Math.max(
+    0,
+    getScrollContainerHeight(scrollContainer) -
+      getScrollContainerViewportHeight(scrollContainer),
+  );
+  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
 }
 
 /**
  * Interpolates between two neighboring Markdown blocks when the target line falls
  * between them rather than inside either block.
  *
- * @param fileViewEl Scroll container for the preview.
+ * @param scrollContainer Active scroll container for the preview.
  * @param before Closest block before the target line.
  * @param after Closest block after the target line.
  * @param line Source line to align.
  */
 function scrollPreviewBetweenCandidates(
-  fileViewEl: HTMLElement,
+  scrollContainer: ScrollContainer,
   before: MarkdownSeekCandidate,
   after: MarkdownSeekCandidate,
   line: number,
 ): void {
-  const containerRect = fileViewEl.getBoundingClientRect();
   const beforeRect = before.node.getBoundingClientRect();
   const afterRect = after.node.getBoundingClientRect();
   const lineSpan = Math.max(1, after.start - before.end);
@@ -232,10 +237,56 @@ function scrollPreviewBetweenCandidates(
   const afterPoint = afterRect.top;
   const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
   const targetTop =
-    fileViewEl.scrollTop + (targetPoint - containerRect.top) - (fileViewEl.clientHeight * 0.32);
-  const maxTop = Math.max(0, fileViewEl.scrollHeight - fileViewEl.clientHeight);
-  fileViewEl.scrollTo({
-    top: Math.max(0, Math.min(maxTop, targetTop)),
-    behavior: "auto",
-  });
+    getScrollContainerTop(scrollContainer) +
+    (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
+    (getScrollContainerViewportHeight(scrollContainer) * 0.32);
+  const maxTop = Math.max(
+    0,
+    getScrollContainerHeight(scrollContainer) -
+      getScrollContainerViewportHeight(scrollContainer),
+  );
+  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+}
+
+function getScrollContainerTop(scrollContainer: ScrollContainer): number {
+  if (!isRootScrollContainer(scrollContainer)) {
+    return scrollContainer.scrollTop;
+  }
+  return window.scrollY || window.pageYOffset || scrollContainer.scrollTop || 0;
+}
+
+function setScrollContainerTop(scrollContainer: ScrollContainer, top: number): void {
+  if (!isRootScrollContainer(scrollContainer)) {
+    scrollContainer.scrollTo({ top, behavior: "auto" });
+    return;
+  }
+  window.scrollTo({ top, behavior: "auto" });
+}
+
+function getScrollContainerViewportTop(scrollContainer: ScrollContainer): number {
+  return isRootScrollContainer(scrollContainer)
+    ? 0
+    : scrollContainer.getBoundingClientRect().top;
+}
+
+function getScrollContainerViewportHeight(scrollContainer: ScrollContainer): number {
+  return isRootScrollContainer(scrollContainer)
+    ? window.innerHeight
+    : scrollContainer.clientHeight;
+}
+
+function getScrollContainerHeight(scrollContainer: ScrollContainer): number {
+  if (!isRootScrollContainer(scrollContainer)) {
+    return scrollContainer.scrollHeight;
+  }
+  return Math.max(
+    scrollContainer.scrollHeight,
+    document.body?.scrollHeight || 0,
+    document.documentElement.scrollHeight,
+  );
+}
+
+function isRootScrollContainer(scrollContainer: ScrollContainer): boolean {
+  const scrollingElement = document.scrollingElement;
+  return scrollContainer === scrollingElement || scrollContainer === document.documentElement;
 }

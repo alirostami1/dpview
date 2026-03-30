@@ -78,12 +78,17 @@ export function renderSidebarShell(elements: Elements, state: State): void {
     } else {
         elements.sidebarEl.setAttribute("aria-hidden", "true");
     }
+    elements.sidebarFilesViewEl.classList.toggle("hidden", state.sidebarMode !== "files");
+    elements.sidebarSettingsViewEl.classList.toggle("hidden", state.sidebarMode !== "settings");
+    elements.sidebarFilesTab.classList.toggle("active", state.sidebarMode === "files");
+    elements.sidebarSettingsTab.classList.toggle("active", state.sidebarMode === "settings");
+    elements.sidebarFilesTab.setAttribute("aria-selected", String(state.sidebarMode === "files"));
+    elements.sidebarSettingsTab.setAttribute("aria-selected", String(state.sidebarMode === "settings"));
 }
 
 /** Switches which top-level page section is visible. */
 export function setPage(elements: Elements, page: Page): void {
     elements.fileViewEl.classList.toggle("hidden", page !== "file");
-    elements.settingsViewEl.classList.toggle("hidden", page !== "settings");
     elements.notFoundViewEl.classList.toggle("hidden", page !== "not-found");
 }
 

@@ -1,5 +1,5 @@
 import { applyPreviewSeek } from "./seek";
-import { encodeAppPath, isSettingsRoute, parseRoute } from "./routes";
+import { encodeAppPath, parseRoute } from "./routes";
 import { apiFetch } from "./api";
 import { requiredElement, requiredSelector } from "./dom";
 import {
@@ -15,6 +15,7 @@ import {
     setPreviewThemePreference,
     setSearch,
     setSidebarCollapsed,
+    setSidebarMode,
     setStatus,
     setThemePreference,
 } from "./actions";
@@ -96,6 +97,10 @@ const elements: Elements = {
     healthEl: requiredElement<HTMLElement>("health"),
     logsEl: requiredElement<HTMLElement>("logs"),
     searchInput: requiredElement<HTMLInputElement>("search"),
+    sidebarFilesTab: requiredElement<HTMLButtonElement>("sidebar-files-tab"),
+    sidebarSettingsTab: requiredElement<HTMLButtonElement>("sidebar-settings-tab"),
+    sidebarFilesViewEl: requiredElement<HTMLElement>("sidebar-files-view"),
+    sidebarSettingsViewEl: requiredElement<HTMLElement>("sidebar-settings-view"),
     pauseRefreshInput: requiredElement<HTMLInputElement>("pause-refresh"),
     themeSelect: requiredElement<HTMLSelectElement>("theme"),
     previewThemeSelect: requiredElement<HTMLSelectElement>("preview-theme"),
@@ -105,15 +110,12 @@ const elements: Elements = {
     markdownFrontMatterVisibleInput: requiredElement<HTMLInputElement>("markdown-frontmatter-visible"),
     markdownFrontMatterExpandedInput: requiredElement<HTMLInputElement>("markdown-frontmatter-expanded"),
     markdownFrontMatterTitleInput: requiredElement<HTMLInputElement>("markdown-frontmatter-title"),
-    openSettingsButton: requiredElement<HTMLButtonElement>("open-settings"),
-    closeSettingsButton: requiredElement<HTMLButtonElement>("close-settings"),
     clearLogsButton: requiredElement<HTMLButtonElement>("clear-logs"),
     toggleSidebarButton: requiredElement<HTMLButtonElement>("toggle-sidebar"),
     showSidebarButton: requiredElement<HTMLButtonElement>("show-sidebar"),
     goHomeButton: requiredElement<HTMLButtonElement>("go-home"),
     notFoundMessageEl: requiredElement<HTMLElement>("not-found-message"),
     fileViewEl: requiredElement<HTMLElement>("file-view"),
-    settingsViewEl: requiredElement<HTMLElement>("settings-view"),
     notFoundViewEl: requiredElement<HTMLElement>("not-found-view"),
 };
 
@@ -144,6 +146,7 @@ const state: State = {
     theme: initialTheme,
     previewTheme: initialPreviewTheme,
     sidebarCollapsed: false,
+    sidebarMode: "files",
     frontMatterExpanded: null,
     localSelectionInFlight: "",
     statusMessage: "",
@@ -169,6 +172,8 @@ function initializeUI(): void {
     elements.statusEl.setAttribute("aria-live", "polite");
     elements.showSidebarButton.setAttribute("aria-controls", "sidebar");
     elements.toggleSidebarButton.setAttribute("aria-controls", "sidebar");
+    elements.sidebarFilesTab.setAttribute("aria-controls", "sidebar-files-view");
+    elements.sidebarSettingsTab.setAttribute("aria-controls", "sidebar-settings-view");
     elements.previewEl.tabIndex = -1;
     applyTheme(state.theme);
     applyMarkdownTheme(state.previewTheme);
@@ -187,14 +192,8 @@ function bindUIEvents(): void {
         renderTreeUI();
     });
 
-    elements.openSettingsButton.addEventListener("click", () => {
-        if (isSettingsRoute()) {
-            navigateToCurrentFile();
-            return;
-        }
-        navigateToSettings();
-    });
-    elements.closeSettingsButton.addEventListener("click", () => navigateToCurrentFile());
+    elements.sidebarFilesTab.addEventListener("click", () => updateSidebarMode("files"));
+    elements.sidebarSettingsTab.addEventListener("click", () => updateSidebarMode("settings"));
     elements.goHomeButton.addEventListener("click", () => navigateToCurrentFile());
     elements.toggleSidebarButton.addEventListener("click", () => updateSidebarCollapsed(true));
     elements.showSidebarButton.addEventListener("click", () => updateSidebarCollapsed(false));
@@ -212,12 +211,17 @@ function bindUIEvents(): void {
         updateStatus("Log cleared.");
     });
     window.addEventListener("popstate", () => {
-        applyRoute(parseRoute(window.location.pathname, window.location.search));
+        applyRoute(parseRoute(window.location.pathname));
+    });
+    window.addEventListener("resize", () => {
+        if (state.settings.seek_enabled) {
+            queueApplySeek();
+        }
     });
     window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && isSettingsRoute()) {
+        if (event.key === "Escape" && state.sidebarMode === "settings") {
             event.preventDefault();
-            navigateToCurrentFile();
+            updateSidebarMode("files");
             return;
         }
         if (event.key === "/" && document.activeElement !== elements.searchInput) {
@@ -385,7 +389,7 @@ async function bootstrap(): Promise<void> {
         setConnectionState(state, "degraded");
         renderStatus(elements, state);
         renderConnectionBanner(elements, state);
-        applyRoute({ kind: "settings" });
+        updateSidebarMode("settings");
     }
 }
 
@@ -451,9 +455,37 @@ function updateSidebarCollapsed(collapsed: boolean): void {
         requestAnimationFrame(() => elements.showSidebarButton.focus());
     }
     if (!collapsed) {
-        requestAnimationFrame(() => elements.searchInput.focus());
+        requestAnimationFrame(() => {
+            if (state.sidebarMode === "settings") {
+                elements.sidebarSettingsTab.focus();
+                return;
+            }
+            elements.searchInput.focus();
+        });
     }
     void syncSettings();
+}
+
+function updateSidebarMode(mode: "files" | "settings"): void {
+    if (state.sidebarMode === mode) {
+        if (state.sidebarCollapsed) {
+            updateSidebarCollapsed(false);
+        }
+        return;
+    }
+    setSidebarMode(state, mode);
+    renderSidebarShell(elements, state);
+    if (state.sidebarCollapsed) {
+        updateSidebarCollapsed(false);
+        return;
+    }
+    requestAnimationFrame(() => {
+        if (mode === "settings") {
+            elements.sidebarSettingsTab.focus();
+            return;
+        }
+        elements.searchInput.focus();
+    });
 }
 
 function renderTreeUI(): void {
@@ -658,7 +690,7 @@ async function setCurrent(path: string): Promise<void> {
 }
 
 async function loadInitialState(): Promise<void> {
-    const initialRoute = parseRoute(window.location.pathname, window.location.search);
+    const initialRoute = parseRoute(window.location.pathname);
     const [health, files, current, logs, seek, settings] = await Promise.all([
         apiFetch("/api/health", healthDataSchema),
         apiFetch("/api/files", filesDataSchema),
@@ -694,7 +726,7 @@ async function loadInitialState(): Promise<void> {
     }
 
     const storedPath = readStoredString(STORAGE.currentPath, currentPathStorageSchema, "");
-    const routedPath = initialRoute.kind === "file" ? initialRoute.path : "";
+    const routedPath = initialRoute.path;
     const preferredPath = routedPath || (!current.data.current && storedPath ? storedPath : "");
     if (preferredPath && preferredPath !== current.data.file?.path && fileExists(preferredPath)) {
         await setCurrent(preferredPath);
@@ -804,13 +836,7 @@ function fileExists(path: string): boolean {
     return state.files.some((file) => file.path === path);
 }
 
-function applyRoute(route: { kind: "settings" } | { kind: "file"; path: string }): void {
-    if (route.kind === "settings") {
-        setPage(elements, "settings");
-        renderSettingsUI();
-        requestAnimationFrame(() => elements.closeSettingsButton.focus());
-        return;
-    }
+function applyRoute(route: { kind: "file"; path: string }): void {
     if (!route.path || fileExists(route.path) || state.files.length === 0) {
         setPage(elements, "file");
         if (route.path && state.current?.file?.path !== route.path && fileExists(route.path)) {
@@ -825,48 +851,32 @@ function applyRoute(route: { kind: "settings" } | { kind: "file"; path: string }
     requestAnimationFrame(() => elements.goHomeButton.focus());
 }
 
-function navigateToSettings(options: { replace?: boolean } = {}): void {
-    const { replace = false } = options;
-    const url = new URL(window.location.href);
-    url.searchParams.set("settings", "open");
-    if (replace) {
-        window.history.replaceState({}, "", url);
-    } else {
-        window.history.pushState({}, "", url);
-    }
-    applyRoute(parseRoute(url.pathname, url.search));
-}
-
 function navigateToCurrentFile(options: { replace?: boolean } = {}): void {
-    navigateToFilePath(state.current?.file?.path || "", {
-        ...options,
-        preserveSettings: false,
-    });
+    navigateToFilePath(state.current?.file?.path || "", options);
 }
 
 function navigateToFilePath(
     path: string,
-    options: { replace?: boolean; apply?: boolean; preserveSettings?: boolean } = {},
+    options: { replace?: boolean; apply?: boolean } = {},
 ): void {
-    const { replace = false, apply = true, preserveSettings = false } = options;
+    const { replace = false, apply = true } = options;
     const url = new URL(window.location.href);
     url.pathname = encodeAppPath(path || "");
-    if (!preserveSettings) {
-        url.searchParams.delete("settings");
-    }
+    url.search = "";
     if (replace) {
         window.history.replaceState({}, "", url);
     } else {
         window.history.pushState({}, "", url);
     }
     if (apply) {
-        applyRoute(parseRoute(url.pathname, url.search));
+        applyRoute(parseRoute(url.pathname));
     }
 }
 
 function syncLocationPath(path: string): void {
     const url = new URL(window.location.href);
     url.pathname = encodeAppPath(path || "");
+    url.search = "";
     window.history.replaceState({}, "", url);
 }
 
