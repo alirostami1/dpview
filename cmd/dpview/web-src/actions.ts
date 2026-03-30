@@ -21,6 +21,9 @@ export function applyFiles(state: State, data: FilesData): void {
 export function applyCurrent(state: State, data: CurrentData): void {
     const previousPath = state.current?.file?.path || "";
     state.current = data;
+    if (data.preview.status !== "rendering") {
+        state.lastSettledCurrent = data;
+    }
     if ((data.file?.path || "") !== previousPath) {
         state.frontMatterExpanded = null;
     }

@@ -127,6 +127,7 @@ const state: State = {
     files: [],
     tree: [],
     current: null,
+    lastSettledCurrent: null,
     settings: {
         auto_refresh_paused: false,
         sidebar_collapsed: false,

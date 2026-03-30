@@ -239,7 +239,7 @@ export function bindFrontMatterState(elements: Elements, state: State): void {
 
 /** Renders the current preview shell and returns the server HTML insertion boundary. */
 export function renderPreview(elements: Elements, state: State): PreviewRenderResult {
-    const current = state.current;
+    const current = resolvePreviewCurrent(state);
     const file = current?.file || null;
     const preview = current?.preview;
     const previewWrapperClass =
@@ -302,6 +302,24 @@ export function renderPreview(elements: Elements, state: State): PreviewRenderRe
         document.createTextNode(file ? "No preview available." : "No file selected."),
     );
     return { serverContentEl: null, markdownRoot: null };
+}
+
+function resolvePreviewCurrent(state: State): State["current"] {
+    const current = state.current;
+    if (!current || current.preview.status !== "rendering") {
+        return current;
+    }
+
+    const settled = state.lastSettledCurrent;
+    if (!settled) {
+        return current;
+    }
+
+    if ((settled.file?.path || "") !== (current.file?.path || "")) {
+        return current;
+    }
+
+    return settled;
 }
 
 function createFrontMatterPanel(

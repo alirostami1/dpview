@@ -27,6 +27,8 @@ export interface State {
     tree: TreeNode[];
     /** Current file/preview snapshot. */
     current: CurrentData | null;
+    /** Last non-rendering current-file snapshot kept to avoid preview flicker. */
+    lastSettledCurrent: CurrentData | null;
     /** Current settings snapshot. */
     settings: Settings;
     /** Health snapshot shown on the settings screen. */
