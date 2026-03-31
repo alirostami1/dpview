@@ -718,6 +718,9 @@ function applyCurrent(data: CurrentData): void {
   localStorage.setItem(STORAGE.currentPath, path);
   navigation.syncLocationPath(path);
   viewController.renderTreeUI();
+  // Reuse the existing Markdown DOM when the server only changed content inside
+  // the preview shell. Full replacement is still required when feature toggles
+  // or incompatible preview states make morphing unsafe.
   if (
     !forceMarkdownPreviewReplace &&
     viewController.morphMarkdownPreview(previousCurrent, state.current)
@@ -786,7 +789,9 @@ function handleRenderStarted(incoming: CurrentData): void {
     Boolean(previous.preview?.html) &&
     previous.preview.status !== "error";
 
-  // Keep the last settled preview visible while transient updates are still rendering.
+  // `render_started` arrives before the final preview payload. For transient
+  // editor updates, keep showing the last good preview until the matching
+  // settled event lands so the UI does not flicker to an empty shell.
   if (keepExistingPreview && previous) {
     state.current = {
       ...incoming,

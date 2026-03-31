@@ -7,7 +7,6 @@ export const STORAGE = {
   theme: "dpview.theme",
 } as const;
 
-/** Reads a string value from localStorage with schema validation and fallback. */
 export function readStoredString<T extends string>(
   key: string,
   schema: ZodType<T>,
@@ -18,7 +17,6 @@ export function readStoredString<T extends string>(
   return result.success ? result.data : fallback;
 }
 
-/** Reads a JSON value from localStorage with schema validation and fallback. */
 export function readStoredJSON<T>(
   key: string,
   schema: ZodType<T>,

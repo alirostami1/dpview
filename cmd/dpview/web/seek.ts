@@ -1,33 +1,18 @@
 import type { CurrentData, Preview, SeekData, Settings } from "./types";
 
-/** Active scroller used for preview seeking. */
 export type ScrollContainer = HTMLElement;
 
 const SEEK_VIEWPORT_ANCHOR = 0.5;
 
-/** Candidate preview element used for Markdown source-line seeking. */
 interface MarkdownSeekCandidate {
-  /** DOM node carrying source line metadata. */
   node: HTMLElement;
-  /** First source line covered by the node. */
   start: number;
-  /** Last source line covered by the node. */
   end: number;
-  /** DOM depth used as a specificity tie-breaker. */
   depth: number;
 }
 
 type TypstSeekAnchor = NonNullable<Preview["typst_seek_anchors"]>[number];
 
-/**
- * Applies editor seek state to the current preview when possible.
- *
- * @param scrollContainer Active scroll container for the current file view.
- * @param previewEl Root preview element.
- * @param current Current file/preview snapshot.
- * @param seek Current seek position snapshot.
- * @param settings Active settings snapshot.
- */
 export function applyPreviewSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
@@ -56,13 +41,6 @@ export function applyPreviewSeek(
   }
 }
 
-/**
- * Aligns a Markdown preview to the best matching source line block.
- *
- * @param scrollContainer Active scroll container for the preview.
- * @param previewEl Root preview element.
- * @param seek Current seek position snapshot.
- */
 function applyMarkdownSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
@@ -125,13 +103,6 @@ function applyMarkdownSeek(
   scrollPreviewToLine(scrollContainer, before || after, focusLine);
 }
 
-/**
- * Aligns a Typst preview proportionally using source line progress.
- *
- * @param scrollContainer Active scroll container for the preview.
- * @param seek Current seek position snapshot.
- * @param preview Current preview data.
- */
 function applyTypstSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
@@ -313,12 +284,6 @@ function resolveTypstAnchorPoint(
   return pageRect.top + pageRect.height * Math.max(0, Math.min(1, ratio));
 }
 
-/**
- * Collects preview elements that expose source line metadata.
- *
- * @param previewEl Root preview element.
- * @returns Ordered list of candidate elements for seek calculations.
- */
 function collectMarkdownSeekCandidates(
   previewEl: HTMLElement
 ): MarkdownSeekCandidate[] {
@@ -347,12 +312,6 @@ function collectMarkdownSeekCandidates(
     );
 }
 
-/**
- * Counts how deep a node is in the preview DOM tree.
- *
- * @param node Node to inspect.
- * @returns Parent depth, used to prefer more specific matches.
- */
 function countNodeDepth(node: HTMLElement): number {
   let depth = 0;
   for (
@@ -365,13 +324,6 @@ function countNodeDepth(node: HTMLElement): number {
   return depth;
 }
 
-/**
- * Scrolls the preview so a specific source line lands at the target reading position.
- *
- * @param scrollContainer Active scroll container for the preview.
- * @param candidate Best matching preview node.
- * @param line Source line to align.
- */
 function scrollPreviewToLine(
   scrollContainer: ScrollContainer,
   candidate: MarkdownSeekCandidate | null,
@@ -399,15 +351,6 @@ function scrollPreviewToLine(
   );
 }
 
-/**
- * Interpolates between two neighboring Markdown blocks when the target line falls
- * between them rather than inside either block.
- *
- * @param scrollContainer Active scroll container for the preview.
- * @param before Closest block before the target line.
- * @param after Closest block after the target line.
- * @param line Source line to align.
- */
 function scrollPreviewBetweenCandidates(
   scrollContainer: ScrollContainer,
   before: MarkdownSeekCandidate,

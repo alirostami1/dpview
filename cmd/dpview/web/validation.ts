@@ -33,7 +33,6 @@ export {
   storedThemeSchema,
 };
 
-/** Converts a Zod parsing error into a readable detail string. */
 export function formatZodError(error: ZodError): string {
   return error.issues
     .map((issue) => {
@@ -43,7 +42,6 @@ export function formatZodError(error: ZodError): string {
     .join("; ");
 }
 
-/** Parses an API envelope against a specific data schema. */
 export function parseApiEnvelope<T>(
   payload: unknown,
   endpoint: string,
@@ -90,7 +88,6 @@ export function eventPayloadSchema<T>(dataSchema: ZodType<T>) {
     .passthrough();
 }
 
-/** Parses the typed `data` payload from an SSE event. */
 export function parseEventData<T>(
   event: Event,
   label: string,

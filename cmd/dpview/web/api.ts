@@ -2,7 +2,6 @@ import type { ZodType } from "zod";
 import type { ApiResult } from "./types";
 import { parseApiEnvelope } from "./validation";
 
-/** Performs a fetch against the DPview API envelope format. */
 export async function apiFetch<T>(
   path: string,
   dataSchema: ZodType<T>,
