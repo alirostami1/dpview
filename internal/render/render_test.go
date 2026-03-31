@@ -349,10 +349,19 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	var renderDir string
+	var sawQuery bool
 	typst := &typstRenderer{
 		tempRoot: tempRoot,
 		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
 		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
+			switch args[0] {
+			case "query":
+				sawQuery = true
+				return []byte(`[{"start_line":1,"end_line":1,"page":1,"x":"0pt","y":"24pt"}]`), nil, nil
+			case "compile":
+			default:
+				return nil, nil, errors.New("unexpected typst command")
+			}
 			if args[2] != tempRoot {
 				return nil, nil, errors.New("expected project root to be passed to typst")
 			}
@@ -360,8 +369,29 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 			if err != nil {
 				return nil, nil, err
 			}
-			if !strings.Contains(string(wrapper), `#include "/demo.typ"`) || !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
+			if !strings.Contains(string(wrapper), `#let dpview-page = rgb("#0d1117")`) {
 				return nil, nil, errors.New("wrapper missing theme tokens")
+			}
+			includeLine := ""
+			for _, line := range strings.Split(string(wrapper), "\n") {
+				if strings.HasPrefix(line, "#include ") {
+					includeLine = line
+					break
+				}
+			}
+			if includeLine == "" {
+				return nil, nil, errors.New("wrapper missing include path")
+			}
+			includePath, unquoteErr := strconv.Unquote(strings.TrimSpace(strings.TrimPrefix(includeLine, "#include ")))
+			if unquoteErr != nil {
+				return nil, nil, unquoteErr
+			}
+			seekSource, err := os.ReadFile(filepath.Join(tempRoot, includePath))
+			if err != nil {
+				return nil, nil, err
+			}
+			if !strings.Contains(string(seekSource), "<dpview-anchor>") || !strings.Contains(string(seekSource), "= demo") {
+				return nil, nil, errors.New("seek shadow source missing anchors")
 			}
 			renderDir = filepath.Dir(args[4])
 			pageOne := strings.ReplaceAll(args[4], "{p}", "1")
@@ -392,6 +422,12 @@ func TestRenderTypstSuccessReadsSVGPages(t *testing.T) {
 	if !strings.Contains(preview.HTML, "data-page=\"1\"") || !strings.Contains(preview.HTML, "<svg><text>two</text></svg>") {
 		t.Fatalf("Render() HTML = %q", preview.HTML)
 	}
+	if !sawQuery {
+		t.Fatalf("Render() did not query typst anchors")
+	}
+	if len(preview.TypstSeekAnchors) != 1 || preview.TypstSeekAnchors[0].Y != 24 {
+		t.Fatalf("Render() typst seek anchors = %+v", preview.TypstSeekAnchors)
+	}
 	if preview.SourceLineCount != 1 {
 		t.Fatalf("Render() source line count = %d", preview.SourceLineCount)
 	}
@@ -410,8 +446,15 @@ func TestRenderTypstWithoutPreviewThemeCompilesSourceDirectly(t *testing.T) {
 		tempRoot: tempRoot,
 		status:   api.RendererStatus{Kind: files.KindTypst, Name: "Typst", Available: true, Details: map[string]string{"path": "typst"}},
 		runner: mockRunner(func(_ context.Context, _ string, args ...string) ([]byte, []byte, error) {
-			if args[3] != path {
-				return nil, nil, errors.New("expected direct typst source compile")
+			if args[0] == "query" {
+				return []byte(`[]`), nil, nil
+			}
+			compiled, err := os.ReadFile(args[3])
+			if err != nil {
+				return nil, nil, err
+			}
+			if !strings.Contains(string(compiled), "= demo") || !strings.Contains(string(compiled), "<dpview-anchor>") {
+				return nil, nil, errors.New("expected anchored typst source")
 			}
 			pageOne := strings.ReplaceAll(args[4], "{p}", "1")
 			if err := os.WriteFile(pageOne, []byte("<svg><text>plain</text></svg>"), 0o644); err != nil {

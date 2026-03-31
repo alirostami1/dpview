@@ -199,6 +199,8 @@ func (g *generator) tsType(t reflect.Type) string {
 		result = "string"
 	case isIntKind(t.Kind()):
 		result = "number"
+	case isFloatKind(t.Kind()):
+		result = "number"
 	case t.Kind() == reflect.Bool:
 		result = "boolean"
 	case t.Kind() == reflect.Slice:
@@ -224,14 +226,13 @@ func (g *generator) schemaExpr(t reflect.Type, owner reflect.Type, passthrough b
 	case g.enumNames[t].Schema != "":
 		return g.enumNames[t].Schema
 	case g.types[t] != "":
-		if t == owner {
-			return "z.lazy(() => " + schemaName(g.types[t]) + ")"
-		}
-		return schemaName(g.types[t])
+		return "z.lazy(() => " + schemaName(g.types[t]) + ")"
 	case t.Kind() == reflect.String:
 		return "z.string()"
 	case isIntKind(t.Kind()):
 		return "z.number().int()"
+	case isFloatKind(t.Kind()):
+		return "z.number()"
 	case t.Kind() == reflect.Bool:
 		return "z.boolean()"
 	case t.Kind() == reflect.Slice:
@@ -321,6 +322,10 @@ func jsonField(field reflect.StructField) (string, bool) {
 
 func isIntKind(kind reflect.Kind) bool {
 	return kind >= reflect.Int && kind <= reflect.Int64
+}
+
+func isFloatKind(kind reflect.Kind) bool {
+	return kind == reflect.Float32 || kind == reflect.Float64
 }
 
 func ternary[T any](condition bool, whenTrue, whenFalse T) T {

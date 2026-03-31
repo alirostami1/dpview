@@ -1,4 +1,4 @@
-.PHONY: web contracts build test check run dev
+.PHONY: web contracts build test check run dev nvim-sample
 
 VERSION ?= dev
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -30,3 +30,9 @@ run:
 dev:
 	$(MAKE) web
 	 go tool air -c .air.toml
+
+nvim-sample: build
+	nvim examples/sample.md \
+		--cmd 'set runtimepath^=$(CURDIR)' \
+		--cmd 'lua require("dpview").setup({ binary = "$(CURDIR)/build/dpview", port = 8484, sidebar_collapsed = false, editor_file_sync = true, live_buffer_preview = true, cursor_seek = true, typst_preview_theme = true, markdown_frontmatter_visible = true, markdown_frontmatter_expanded = true, markdown_frontmatter_title = true, auto_start = true, auto_open_browser = true, notify = true, preview_theme = "github" })' \
+		-c 'DPviewOpen'

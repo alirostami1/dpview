@@ -46,12 +46,21 @@ export interface TreeNode {
 export interface Preview {
     html?: string;
     frontmatter?: FrontMatter;
+    typst_seek_anchors?: TypstSeekAnchor[];
     source_line_count?: number;
     updated_at?: string;
     render_duration_ms?: number;
     cache_hit: boolean;
     status: RenderStatus;
     error?: ApiError;
+}
+
+export interface TypstSeekAnchor {
+    start_line: number;
+    end_line: number;
+    page: number;
+    x: number;
+    y: number;
 }
 
 export interface CurrentData {
@@ -161,7 +170,7 @@ export const frontMatterSchema: z.ZodType<FrontMatter> = z.object({
     format: z.string(),
     title: z.string().optional(),
     title_used: z.boolean(),
-    entries: z.array(frontMatterEntrySchema),
+    entries: z.array(z.lazy(() => frontMatterEntrySchema)),
 }).passthrough();
 
 export const fileInfoSchema: z.ZodType<FileInfo> = z.object({
@@ -182,18 +191,27 @@ export const treeNodeSchema: z.ZodType<TreeNode> = z.object({
 
 export const previewSchema: z.ZodType<Preview> = z.object({
     html: z.string().optional(),
-    frontmatter: frontMatterSchema.optional(),
+    frontmatter: z.lazy(() => frontMatterSchema).optional(),
+    typst_seek_anchors: z.array(z.lazy(() => typstSeekAnchorSchema)).optional(),
     source_line_count: z.number().int().optional(),
     updated_at: z.string().optional(),
     render_duration_ms: z.number().int().optional(),
     cache_hit: z.boolean(),
     status: renderStatusSchema,
-    error: apiErrorSchema.optional(),
+    error: z.lazy(() => apiErrorSchema).optional(),
+}).passthrough();
+
+export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.object({
+    start_line: z.number().int(),
+    end_line: z.number().int(),
+    page: z.number().int(),
+    x: z.number(),
+    y: z.number(),
 }).passthrough();
 
 export const currentDataSchema: z.ZodType<CurrentData> = z.object({
-    file: fileInfoSchema.optional(),
-    preview: previewSchema,
+    file: z.lazy(() => fileInfoSchema).optional(),
+    preview: z.lazy(() => previewSchema),
     version: z.number().int(),
     event_id: z.number().int(),
     current: z.boolean(),
@@ -215,8 +233,8 @@ export const seekDataSchema: z.ZodType<SeekData> = z.object({
 }).passthrough();
 
 export const filesDataSchema: z.ZodType<FilesData> = z.object({
-    files: z.array(fileInfoSchema),
-    tree: z.array(treeNodeSchema),
+    files: z.array(z.lazy(() => fileInfoSchema)),
+    tree: z.array(z.lazy(() => treeNodeSchema)),
     version: z.number().int(),
     event_id: z.number().int(),
 }).passthrough();
@@ -236,7 +254,7 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
 }).passthrough();
 
 export const settingsDataSchema: z.ZodType<SettingsData> = z.object({
-    settings: settingsSchema,
+    settings: z.lazy(() => settingsSchema),
     version: z.number().int(),
     event_id: z.number().int(),
 }).passthrough();
@@ -253,7 +271,7 @@ export const logEntrySchema: z.ZodType<LogEntry> = z.object({
 }).passthrough();
 
 export const logDataSchema: z.ZodType<LogData> = z.object({
-    entries: z.array(logEntrySchema),
+    entries: z.array(z.lazy(() => logEntrySchema)),
     version: z.number().int(),
     event_id: z.number().int(),
 }).passthrough();
@@ -278,8 +296,8 @@ export const healthDataSchema: z.ZodType<HealthData> = z.object({
     status: z.string(),
     version: z.number().int(),
     event_id: z.number().int(),
-    renderers: z.array(rendererStatusSchema),
-    limits: limitsSchema,
-    watcher: watcherStatusSchema,
+    renderers: z.array(z.lazy(() => rendererStatusSchema)),
+    limits: z.lazy(() => limitsSchema),
+    watcher: z.lazy(() => watcherStatusSchema),
 }).passthrough();
 

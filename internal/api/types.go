@@ -43,12 +43,21 @@ const (
 type Preview struct {
 	HTML             string       `json:"html,omitempty"`
 	FrontMatter      *FrontMatter `json:"frontmatter,omitempty"`
+	TypstSeekAnchors []TypstSeekAnchor `json:"typst_seek_anchors,omitempty"`
 	SourceLineCount  int          `json:"source_line_count,omitempty"`
 	UpdatedAt        time.Time    `json:"updated_at,omitempty"`
 	RenderDurationMS int64        `json:"render_duration_ms,omitempty"`
 	CacheHit         bool         `json:"cache_hit"`
 	Status           RenderStatus `json:"status"`
 	Error            *Error       `json:"error,omitempty"`
+}
+
+type TypstSeekAnchor struct {
+	StartLine int     `json:"start_line"`
+	EndLine   int     `json:"end_line"`
+	Page      int     `json:"page"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
 }
 
 type FrontMatter struct {

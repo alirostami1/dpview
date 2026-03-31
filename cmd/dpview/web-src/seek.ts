@@ -17,6 +17,8 @@ interface MarkdownSeekCandidate {
   depth: number;
 }
 
+type TypstSeekAnchor = NonNullable<Preview["typst_seek_anchors"]>[number];
+
 /**
  * Applies editor seek state to the current preview when possible.
  *
@@ -50,7 +52,7 @@ export function applyPreviewSeek(
     return;
   }
   if (file.kind === "typst") {
-    applyTypstSeek(scrollContainer, seek, preview);
+    applyTypstSeek(scrollContainer, previewEl, seek, preview);
   }
 }
 
@@ -127,12 +129,21 @@ function applyMarkdownSeek(
  */
 function applyTypstSeek(
   scrollContainer: ScrollContainer,
+  previewEl: HTMLElement,
   seek: SeekData,
   preview: Preview,
 ): void {
   const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
+  if (!focusLine) {
+    return;
+  }
+  const anchors = preview.typst_seek_anchors || [];
+  if (anchors.length) {
+    applyTypstAnchorSeek(scrollContainer, previewEl, focusLine, anchors);
+    return;
+  }
   const totalLines = Number(preview.source_line_count || 0);
-  if (!focusLine || !totalLines) {
+  if (!totalLines) {
     return;
   }
   const scrollRange =
@@ -146,6 +157,125 @@ function applyTypstSeek(
     (progress * getScrollContainerHeight(scrollContainer)) -
     (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
   setScrollContainerTop(scrollContainer, Math.max(0, Math.min(scrollRange, targetTop)));
+}
+
+function applyTypstAnchorSeek(
+  scrollContainer: ScrollContainer,
+  previewEl: HTMLElement,
+  focusLine: number,
+  anchors: TypstSeekAnchor[],
+): void {
+  const containing = anchors.filter(
+    (anchor) => focusLine >= anchor.start_line && focusLine <= anchor.end_line,
+  );
+  if (containing.length) {
+    const target = containing.reduce((best, anchor) => {
+      if (!best) {
+        return anchor;
+      }
+      const bestSpan = best.end_line - best.start_line;
+      const span = anchor.end_line - anchor.start_line;
+      return span < bestSpan ? anchor : best;
+    }, containing[0]);
+    scrollPreviewToTypstAnchor(scrollContainer, previewEl, target);
+    return;
+  }
+
+  const before = anchors.reduce<TypstSeekAnchor | null>((best, anchor) => {
+    if (anchor.end_line >= focusLine) {
+      return best;
+    }
+    if (!best || anchor.end_line > best.end_line) {
+      return anchor;
+    }
+    return best;
+  }, null);
+  const after = anchors.reduce<TypstSeekAnchor | null>((best, anchor) => {
+    if (anchor.start_line <= focusLine) {
+      return best;
+    }
+    if (!best || anchor.start_line < best.start_line) {
+      return anchor;
+    }
+    return best;
+  }, null);
+
+  if (before && after) {
+    scrollPreviewBetweenTypstAnchors(scrollContainer, previewEl, before, after, focusLine);
+    return;
+  }
+  scrollPreviewToTypstAnchor(scrollContainer, previewEl, before || after);
+}
+
+function scrollPreviewToTypstAnchor(
+  scrollContainer: ScrollContainer,
+  previewEl: HTMLElement,
+  anchor: TypstSeekAnchor | null,
+): void {
+  const point = resolveTypstAnchorPoint(previewEl, anchor);
+  if (point === null) {
+    return;
+  }
+  const targetTop =
+    getScrollContainerTop(scrollContainer) +
+    (point - getScrollContainerViewportTop(scrollContainer)) -
+    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+  const maxTop = Math.max(
+    0,
+    getScrollContainerHeight(scrollContainer) -
+      getScrollContainerViewportHeight(scrollContainer),
+  );
+  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+}
+
+function scrollPreviewBetweenTypstAnchors(
+  scrollContainer: ScrollContainer,
+  previewEl: HTMLElement,
+  before: TypstSeekAnchor,
+  after: TypstSeekAnchor,
+  line: number,
+): void {
+  const beforePoint = resolveTypstAnchorPoint(previewEl, before);
+  const afterPoint = resolveTypstAnchorPoint(previewEl, after);
+  if (beforePoint === null || afterPoint === null) {
+    scrollPreviewToTypstAnchor(scrollContainer, previewEl, beforePoint === null ? after : before);
+    return;
+  }
+  const lineSpan = Math.max(1, after.start_line - before.end_line);
+  const progress = Math.max(0, Math.min(1, (line - before.end_line) / lineSpan));
+  const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
+  const targetTop =
+    getScrollContainerTop(scrollContainer) +
+    (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
+    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+  const maxTop = Math.max(
+    0,
+    getScrollContainerHeight(scrollContainer) -
+      getScrollContainerViewportHeight(scrollContainer),
+  );
+  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+}
+
+function resolveTypstAnchorPoint(
+  previewEl: HTMLElement,
+  anchor: TypstSeekAnchor | null,
+): number | null {
+  if (!anchor) {
+    return null;
+  }
+  const page = previewEl.querySelector<HTMLElement>(`.typst-page[data-page="${anchor.page}"]`);
+  if (!page) {
+    return null;
+  }
+  const svg = page.querySelector<SVGSVGElement>("svg");
+  if (!svg) {
+    return page.getBoundingClientRect().top;
+  }
+  const viewBox = svg.viewBox.baseVal;
+  const pageRect = page.getBoundingClientRect();
+  const anchorY = Number(anchor.y);
+  const ratio = viewBox && viewBox.height > 0 && Number.isFinite(anchorY) ? anchorY / viewBox.height : 0;
+  return pageRect.top + (pageRect.height * Math.max(0, Math.min(1, ratio)));
 }
 
 /**

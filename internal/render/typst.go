@@ -128,6 +128,33 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 	if root == "" {
 		root = filepath.Dir(req.AbsPath)
 	}
+	shadowSource, _ := buildTypstSeekShadow(req.Source)
+	if !bytes.Equal(shadowSource, req.Source) {
+		shadow, err := os.CreateTemp(filepath.Dir(compileSource), ".dpview-seek-*.typ")
+		if err != nil {
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to create Typst seek source", err.Error())
+		}
+		if _, err := shadow.Write(shadowSource); err != nil {
+			shadow.Close()
+			_ = os.Remove(shadow.Name())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to write Typst seek source", err.Error())
+		}
+		if err := shadow.Close(); err != nil {
+			_ = os.Remove(shadow.Name())
+			for _, cleanupPath := range cleanupPaths {
+				_ = os.Remove(cleanupPath)
+			}
+			return errPreview(req.Started, "internal_error", "Failed to close Typst seek source", err.Error())
+		}
+		compileSource = shadow.Name()
+		cleanupPaths = append(cleanupPaths, compileSource)
+	}
 	if req.Settings.TypstPreviewTheme {
 		wrapper, err := os.CreateTemp(filepath.Dir(compileSource), ".dpview-wrapper-*.typ")
 		if err != nil {
@@ -183,6 +210,10 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 		}
 		return errPreview(req.Started, code, msg, detail)
 	}
+	queryOut, _, queryErr := r.runner.Run(ctx, r.status.Details["path"], "query", "--root", root, compileSource, "<"+typstSeekLabel+">", "--field", "value")
+	if queryErr != nil {
+		queryOut = nil
+	}
 
 	entries, err := os.ReadDir(renderDir)
 	if err != nil {
@@ -216,6 +247,7 @@ func (r *typstRenderer) Render(ctx context.Context, req RenderRequest) api.Previ
 	htmlOut.WriteString(`</div>`)
 
 	return api.Preview{
+		TypstSeekAnchors: parseTypstSeekQueryOutput(queryOut),
 		HTML:             htmlOut.String(),
 		SourceLineCount:  countSourceLines(req.Source),
 		UpdatedAt:        time.Now().UTC(),
