@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"time"
+
+	"codeberg.org/aros/dpview/internal/validation"
 )
 
 type Config struct {
@@ -64,23 +66,15 @@ func Parse() (Config, error) {
 	}
 	cfg.Root = root
 
-	if cfg.Port < 1 || cfg.Port > 65535 {
-		return Config{}, fmt.Errorf("invalid port %d", cfg.Port)
-	}
-	if cfg.Theme != "light" && cfg.Theme != "dark" {
-		return Config{}, fmt.Errorf("invalid theme %q", cfg.Theme)
-	}
-	if cfg.PreviewTheme == "" {
-		return Config{}, fmt.Errorf("preview theme must not be empty")
-	}
-	if cfg.MaxFileSize <= 0 {
-		return Config{}, fmt.Errorf("invalid max file size %d", cfg.MaxFileSize)
-	}
-	if cfg.LogLevel != "debug" && cfg.LogLevel != "info" && cfg.LogLevel != "error" {
-		return Config{}, fmt.Errorf("invalid log level %q", cfg.LogLevel)
-	}
-	if cfg.RenderTimeout <= 0 {
-		return Config{}, fmt.Errorf("invalid render timeout %s", cfg.RenderTimeout)
+	if err := validation.ValidateRuntimeConfig(validation.RuntimeConfig{
+		Port:          cfg.Port,
+		Theme:         cfg.Theme,
+		PreviewTheme:  cfg.PreviewTheme,
+		LogLevel:      cfg.LogLevel,
+		MaxFileSize:   cfg.MaxFileSize,
+		RenderTimeout: cfg.RenderTimeout,
+	}); err != nil {
+		return Config{}, err
 	}
 
 	return cfg, nil
