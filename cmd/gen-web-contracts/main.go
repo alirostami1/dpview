@@ -175,7 +175,7 @@ func (g *generator) render() ([]byte, error) {
 
 	for _, t := range g.order {
 		schemaName := schemaName(g.types[t])
-		fmt.Fprintf(&out, "export const %s: z.ZodType<%s> = %s;\n\n", schemaName, g.types[t], g.structSchema(t, t, true))
+		fmt.Fprintf(&out, "export const %s: z.ZodType<%s> = %s;\n\n", schemaName, g.types[t], g.structSchema(t, t, false))
 	}
 
 	return out.Bytes(), nil
@@ -249,7 +249,7 @@ func (g *generator) structSchema(t reflect.Type, owner reflect.Type, passthrough
 	if passthrough {
 		out.WriteString("z.looseObject({\n")
 	} else {
-		out.WriteString("z.object({\n")
+		out.WriteString("z.strictObject({\n")
 	}
 	for i := range t.NumField() {
 		field := t.Field(i)
