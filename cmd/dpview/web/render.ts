@@ -7,7 +7,6 @@ import type {
 } from "./model";
 import type { CurrentData, FrontMatter, LogEntry, TreeNode } from "./types";
 
-/** Applies the current transient status and degraded-mode state to the settings panel. */
 export function renderStatus(elements: Elements, state: State): void {
   const fragments: HTMLElement[] = [];
 
@@ -36,7 +35,6 @@ export function renderStatus(elements: Elements, state: State): void {
   elements.statusEl.replaceChildren(...fragments);
 }
 
-/** Renders the inline connection/retry banner shown above the preview. */
 export function renderConnectionBanner(elements: Elements, state: State): void {
   const shouldShow =
     state.bootstrapFailed || state.connectionStatus === "degraded";
@@ -79,7 +77,6 @@ function reconnectCountdownSeconds(state: State): number {
   return Math.max(0, Math.ceil((state.reconnectAt - Date.now()) / 1000));
 }
 
-/** Applies sidebar visibility state to the shell DOM. */
 export function renderSidebarShell(elements: Elements, state: State): void {
   elements.appEl.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
   elements.showSidebarButton.classList.toggle(
@@ -128,13 +125,11 @@ export function renderSidebarShell(elements: Elements, state: State): void {
   );
 }
 
-/** Switches which top-level page section is visible. */
 export function setPage(elements: Elements, page: Page): void {
   elements.fileViewEl.classList.toggle("hidden", page !== "file");
   elements.notFoundViewEl.classList.toggle("hidden", page !== "not-found");
 }
 
-/** Renders the sidebar tree based on the current file list and search state. */
 export function renderTree(
   elements: Elements,
   state: State,
@@ -280,7 +275,6 @@ function syncTreeTabStops(elements: Elements, state: State): void {
   }
 }
 
-/** Saves the front matter disclosure state before rerendering the preview DOM. */
 export function rememberFrontMatterState(
   elements: Elements,
   state: State
@@ -292,7 +286,6 @@ export function rememberFrontMatterState(
   }
 }
 
-/** Reattaches front matter disclosure state listeners after preview rerendering. */
 export function bindFrontMatterState(elements: Elements, state: State): void {
   const panel =
     elements.previewEl.querySelector<HTMLDetailsElement>(".frontmatter-panel");
@@ -305,7 +298,6 @@ export function bindFrontMatterState(elements: Elements, state: State): void {
   });
 }
 
-/** Renders the current preview shell and returns the server HTML insertion boundary. */
 export function renderPreview(
   elements: Elements,
   state: State
@@ -472,7 +464,6 @@ function createFrontMatterPanel(
   return details;
 }
 
-/** Renders backend health information into the settings page. */
 export function renderHealth(elements: Elements, state: State): void {
   if (!state.health) {
     elements.healthEl.replaceChildren();
@@ -508,7 +499,6 @@ export function renderHealth(elements: Elements, state: State): void {
   elements.healthEl.replaceChildren(...fragment);
 }
 
-/** Renders recent Go/runtime log entries inside settings. */
 export function renderLogs(elements: Elements, state: State): void {
   const entries = state.logs?.entries || [];
   elements.clearLogsButton.disabled = entries.length === 0;
@@ -576,7 +566,6 @@ function createStatusItem(text: string): HTMLElement {
   return item;
 }
 
-/** Shows the not-found shell with a route-specific message. */
 export function renderNotFound(elements: Elements, message: string): void {
   elements.notFoundMessageEl.textContent = message;
 }

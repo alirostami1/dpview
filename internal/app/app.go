@@ -103,6 +103,8 @@ func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.Curre
 	}
 	selectionChanged := s.currentPath() != info.Path
 	if selectionChanged {
+		// Live-preview buffers are path-scoped. Once the selection changes, stale
+		// buffered editor content for other files must not leak into the next render.
 		s.clearActiveLivePreviewExcept(info.Path)
 	}
 	live := s.activeLivePreviewForPath(info.Path)
@@ -207,6 +209,9 @@ func (s *Service) SetLivePreview(ctx context.Context, req LivePreviewRequest) (a
 		)
 	}
 	if !s.isLatestLivePreviewVersion(info.Path, req.Version) {
+		// Rendering happens outside the mutex, so a newer editor update may finish
+		// while this request is still rendering. Drop the outdated result instead
+		// of publishing it after the newer snapshot.
 		err := api.NewError("stale_live_preview", "Discarded an outdated live preview update", info.Path)
 		return s.store.Snapshot().Current, http.StatusConflict, err
 	}
@@ -587,6 +592,8 @@ func valueOrDefault(value, fallback string) string {
 func (s *Service) reserveLivePreviewVersion(path string, version int64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Reserve the version before rendering so older in-flight requests can be
+	// rejected deterministically even if they finish later.
 	if current := s.latestLivePreview[path]; version <= current {
 		return false
 	}
