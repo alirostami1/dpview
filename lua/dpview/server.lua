@@ -1,5 +1,6 @@
 local uv = vim.uv
 local http = require("dpview.http")
+local notify = require("dpview.notify")
 
 local M = {}
 
@@ -65,15 +66,6 @@ function M.get_url(state)
     return nil
   end
   return ("http://%s:%d"):format(state.config.host, port)
-end
-
-local function notify(state, level, message)
-  if state.config.notify == false then
-    return
-  end
-  vim.schedule(function()
-    vim.notify(message, level, { title = "dpview.nvim" })
-  end)
 end
 
 local function finish_start(state, ok, err)
@@ -232,7 +224,7 @@ function M.start(state, callback)
 
     state.server.running = true
     if state.config.notify ~= false then
-      notify(state, vim.log.levels.INFO, "DPview started at " .. M.get_url(state))
+      notify.send(state, vim.log.levels.INFO, "DPview started at " .. M.get_url(state))
     end
     if state.config.auto_open_browser and not state.server.browser_opened then
       M.open_browser(state)
@@ -254,7 +246,7 @@ end
 function M.open_browser(state)
   local url = M.get_url(state)
   if not url then
-    notify(state, vim.log.levels.WARN, "dpview is not running")
+    notify.send(state, vim.log.levels.WARN, "dpview is not running")
     return false
   end
 
