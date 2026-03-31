@@ -17,6 +17,7 @@ The plugin resolves the DPview command in this order:
 1. `binary` from `require("dpview").setup(...)` when it points to an executable
 2. `dpview` found on `PATH`
 3. `build/dpview` or `build/main` under the directory where Neovim was started
+
 ## Installation
 
 ### lazy.nvim

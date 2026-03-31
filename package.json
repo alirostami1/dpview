@@ -2,10 +2,13 @@
   "name": "dpview",
   "private": true,
   "scripts": {
-    "bundle:web": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy",
-    "typecheck:web": "tsc --project tsconfig.json --noEmit",
-    "build:web": "npm run typecheck:web && npm run bundle:web",
-    "watch:web": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy --watch"
+    "bundle": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy",
+    "format": "prettier --write \"**/*.{ts,js,mjs,cjs,css,html,json,md,yml,yaml}\"",
+    "check:format": "prettier --check \"**/*.{ts,js,mjs,cjs,css,html,json,md,yml,yaml}\"",
+    "lint": "eslint \"cmd/dpview/web/**/*.ts\"",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "build": "npm run typecheck && npm run bundle",
+    "watch": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy --watch"
   },
   "dependencies": {
     "katex": "^0.16.44",
@@ -13,8 +16,13 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.38.0",
     "esbuild": "^0.27.4",
+    "eslint": "^9.38.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
     "typescript": "^6.0.2",
+    "typescript-eslint": "^8.46.2",
     "typescript-language-server": "^5.1.3"
   }
 }

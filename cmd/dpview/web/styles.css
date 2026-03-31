@@ -489,7 +489,12 @@ body[data-theme="dark"] .connection-banner {
   overflow: auto;
   resize: vertical;
   color: var(--foreground);
-  font: 0.9rem/1.5 "Iosevka", "SFMono-Regular", "SF Mono", "Cascadia Code", monospace;
+  font:
+    0.9rem/1.5 "Iosevka",
+    "SFMono-Regular",
+    "SF Mono",
+    "Cascadia Code",
+    monospace;
   white-space: pre;
 }
 

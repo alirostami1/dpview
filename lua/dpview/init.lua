@@ -266,14 +266,22 @@ function M.status()
     ("live_buffer_preview: %s"):format(state.config.live_buffer_preview and "true" or "false"),
     ("latex_enabled: %s"):format(state.config.latex_enabled and "true" or "false"),
     ("cursor_seek: %s"):format(state.config.cursor_seek and "true" or "false"),
-    ("live_buffer_preview_debounce_ms: %s"):format(tostring(state.config.live_buffer_preview_debounce_ms)),
+    ("live_buffer_preview_debounce_ms: %s"):format(
+      tostring(state.config.live_buffer_preview_debounce_ms)
+    ),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
     ("log_level: %s"):format(state.config.log_level or "info"),
     ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
-    ("markdown_frontmatter_visible: %s"):format(state.config.markdown_frontmatter_visible and "true" or "false"),
-    ("markdown_frontmatter_expanded: %s"):format(state.config.markdown_frontmatter_expanded and "true" or "false"),
-    ("markdown_frontmatter_title: %s"):format(state.config.markdown_frontmatter_title and "true" or "false"),
+    ("markdown_frontmatter_visible: %s"):format(
+      state.config.markdown_frontmatter_visible and "true" or "false"
+    ),
+    ("markdown_frontmatter_expanded: %s"):format(
+      state.config.markdown_frontmatter_expanded and "true" or "false"
+    ),
+    ("markdown_frontmatter_title: %s"):format(
+      state.config.markdown_frontmatter_title and "true" or "false"
+    ),
     ("launch: %s"):format(state.server.launch_label or "not started"),
   }
   if state.server.last_error then
@@ -285,19 +293,28 @@ end
 function M.set_seek_enabled(enabled)
   state.config.cursor_seek = enabled and true or false
   sync_settings()
-  notify(vim.log.levels.INFO, "DPview seeking " .. (state.config.cursor_seek and "enabled" or "disabled"))
+  notify(
+    vim.log.levels.INFO,
+    "DPview seeking " .. (state.config.cursor_seek and "enabled" or "disabled")
+  )
 end
 
 function M.set_file_sync_enabled(enabled)
   state.config.editor_file_sync = enabled and true or false
   sync_settings()
-  notify(vim.log.levels.INFO, "DPview editor file sync " .. (state.config.editor_file_sync and "enabled" or "disabled"))
+  notify(
+    vim.log.levels.INFO,
+    "DPview editor file sync " .. (state.config.editor_file_sync and "enabled" or "disabled")
+  )
 end
 
 function M.set_live_buffer_preview_enabled(enabled)
   state.config.live_buffer_preview = enabled and true or false
   sync_settings()
-  notify(vim.log.levels.INFO, "DPview live buffer preview " .. (state.config.live_buffer_preview and "enabled" or "disabled"))
+  notify(
+    vim.log.levels.INFO,
+    "DPview live buffer preview " .. (state.config.live_buffer_preview and "enabled" or "disabled")
+  )
 end
 
 function M._state()
