@@ -15,6 +15,7 @@ import (
 	"codeberg.org/aros/dpview/internal/api"
 	"codeberg.org/aros/dpview/internal/app"
 	"codeberg.org/aros/dpview/internal/state"
+	"codeberg.org/aros/dpview/internal/validation"
 )
 
 type Application interface {
@@ -197,6 +198,14 @@ func (s *Server) handleSetSettings(w http.ResponseWriter, r *http.Request) {
 	var req SettingsRequest
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeDecodeError(w, err)
+		return
+	}
+	if err := validation.ValidateSettingsPatch(req); err != nil {
+		writeJSON(
+			w,
+			http.StatusBadRequest,
+			api.Fail(api.NewError("invalid_settings", "Invalid settings payload", err.Error())),
+		)
 		return
 	}
 	writeJSON(w, http.StatusOK, api.OK(s.app.UpdateSettingsPatch(req)))

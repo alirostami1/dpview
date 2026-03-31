@@ -185,6 +185,18 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		t.Fatalf("POST /api/settings unknown field status=%d body=%s", resp.StatusCode, body)
 	}
 
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"theme":"system"}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"invalid_settings"`) || !strings.Contains(body, `invalid theme \"system\"`) {
+		t.Fatalf("POST /api/settings invalid theme status=%d body=%s", resp.StatusCode, body)
+	}
+
+	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"preview_theme":"solarized"}`)
+	body = readBody(t, resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, `"code":"invalid_settings"`) || !strings.Contains(body, `invalid preview theme \"solarized\"`) {
+		t.Fatalf("POST /api/settings invalid preview theme status=%d body=%s", resp.StatusCode, body)
+	}
+
 	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"preview_theme":"`+strings.Repeat("a", maxJSONBodyBytes)+`"}`)
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(body, `"code":"request_too_large"`) {
