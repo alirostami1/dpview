@@ -1,4 +1,5 @@
 local http = require("dpview.http")
+local notify = require("dpview.notify")
 local server = require("dpview.server")
 
 local M = {}
@@ -12,15 +13,6 @@ local supported = {
 
 local function normalize(path)
   return vim.fs.normalize(path)
-end
-
-local function notify(state, level, message)
-  if state.config.notify == false then
-    return
-  end
-  vim.schedule(function()
-    vim.notify(message, level, { title = "dpview.nvim" })
-  end)
 end
 
 local function current_path(bufnr)
@@ -72,12 +64,12 @@ local function post_current(state, relpath)
     body = vim.json.encode({ path = relpath, origin = "editor" }),
   }, function(err, response, payload)
     if err then
-      notify(state, vim.log.levels.ERROR, "failed to sync buffer: " .. err)
+      notify.send(state, vim.log.levels.ERROR, "failed to sync buffer: " .. err)
       return
     end
 
     if response.status ~= 200 or not payload or payload.ok ~= true then
-      notify(state, vim.log.levels.ERROR, "dpview rejected the current buffer")
+      notify.send(state, vim.log.levels.ERROR, "dpview rejected the current buffer")
       return
     end
     state.server.current_path = relpath
@@ -136,7 +128,7 @@ local function post_live_preview(state, relpath, content, version, edits)
     }),
   }, function(err, response, payload)
     if err then
-      notify(state, vim.log.levels.ERROR, "failed to sync live preview: " .. err)
+      notify.send(state, vim.log.levels.ERROR, "failed to sync live preview: " .. err)
       return
     end
 
@@ -158,7 +150,7 @@ local function post_live_preview(state, relpath, content, version, edits)
       return
     end
     if response.status ~= 200 or not payload or payload.ok ~= true then
-      notify(state, vim.log.levels.ERROR, "dpview rejected the live buffer preview")
+      notify.send(state, vim.log.levels.ERROR, "dpview rejected the live buffer preview")
       return
     end
     state.server.current_path = relpath
@@ -199,7 +191,7 @@ local function post_seek(state, payload)
     body = vim.json.encode(payload),
   }, function(err, response, payload)
     if err then
-      notify(state, vim.log.levels.ERROR, "failed to sync cursor: " .. err)
+      notify.send(state, vim.log.levels.ERROR, "failed to sync cursor: " .. err)
       return
     end
 
@@ -207,7 +199,7 @@ local function post_seek(state, payload)
       return
     end
     if response.status ~= 200 or not payload or payload.ok ~= true then
-      notify(state, vim.log.levels.ERROR, "dpview rejected the cursor position")
+      notify.send(state, vim.log.levels.ERROR, "dpview rejected the cursor position")
     end
   end)
 end
@@ -234,7 +226,7 @@ function M.sync_current(state, opts)
   server.start(state, function(ok, err)
     if not ok then
       if err then
-        notify(state, vim.log.levels.ERROR, err)
+        notify.send(state, vim.log.levels.ERROR, err)
       end
       return
     end
@@ -305,7 +297,7 @@ function M.sync_live_preview(state, opts)
     server.start(state, function(ok, err)
       if not ok then
         if err then
-          notify(state, vim.log.levels.ERROR, err)
+          notify.send(state, vim.log.levels.ERROR, err)
         end
         return
       end

@@ -1,6 +1,7 @@
 local server = require("dpview.server")
 local sync = require("dpview.sync")
 local http = require("dpview.http")
+local notify = require("dpview.notify")
 
 local M = {}
 
@@ -51,13 +52,8 @@ local state = {
   },
 }
 
-local function notify(level, message)
-  if state.config.notify == false then
-    return
-  end
-  vim.schedule(function()
-    vim.notify(message, level, { title = "dpview.nvim" })
-  end)
+local function create_command(name, callback)
+  vim.api.nvim_create_user_command(name, callback, {})
 end
 
 local function create_autocmds()
@@ -95,61 +91,81 @@ local function create_autocmds()
 end
 
 local function create_commands()
-  vim.api.nvim_create_user_command("DPviewStart", function()
-    require("dpview").start()
-  end, {})
+  local commands = {
+    {
+      name = "DPviewStart",
+      callback = function()
+        require("dpview").start()
+      end,
+    },
+    {
+      name = "DPviewStop",
+      callback = function()
+        require("dpview").stop()
+      end,
+    },
+    {
+      name = "DPviewOpen",
+      callback = function()
+        require("dpview").open()
+      end,
+    },
+    {
+      name = "DPviewSync",
+      callback = function()
+        require("dpview").sync_current_buffer({
+          bufnr = 0,
+          force_start = true,
+          force_current = true,
+        })
+      end,
+    },
+    {
+      name = "DPviewStatus",
+      callback = function()
+        require("dpview").status()
+      end,
+    },
+  }
+  local toggle_commands = {
+    {
+      prefix = "DPviewSeek",
+      setter = "set_seek_enabled",
+      current = function()
+        return state.config.cursor_seek
+      end,
+    },
+    {
+      prefix = "DPviewFileSync",
+      setter = "set_file_sync_enabled",
+      current = function()
+        return state.config.editor_file_sync
+      end,
+    },
+    {
+      prefix = "DPviewLivePreview",
+      setter = "set_live_buffer_preview_enabled",
+      current = function()
+        return state.config.live_buffer_preview
+      end,
+    },
+  }
 
-  vim.api.nvim_create_user_command("DPviewStop", function()
-    require("dpview").stop()
-  end, {})
+  for _, command in ipairs(commands) do
+    create_command(command.name, command.callback)
+  end
 
-  vim.api.nvim_create_user_command("DPviewOpen", function()
-    require("dpview").open()
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewSync", function()
-    require("dpview").sync_current_buffer({ bufnr = 0, force_start = true, force_current = true })
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewStatus", function()
-    require("dpview").status()
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewSeekEnable", function()
-    require("dpview").set_seek_enabled(true)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewSeekDisable", function()
-    require("dpview").set_seek_enabled(false)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewSeekToggle", function()
-    require("dpview").set_seek_enabled(not state.config.cursor_seek)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewFileSyncEnable", function()
-    require("dpview").set_file_sync_enabled(true)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewFileSyncDisable", function()
-    require("dpview").set_file_sync_enabled(false)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewFileSyncToggle", function()
-    require("dpview").set_file_sync_enabled(not state.config.editor_file_sync)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewLivePreviewEnable", function()
-    require("dpview").set_live_buffer_preview_enabled(true)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewLivePreviewDisable", function()
-    require("dpview").set_live_buffer_preview_enabled(false)
-  end, {})
-
-  vim.api.nvim_create_user_command("DPviewLivePreviewToggle", function()
-    require("dpview").set_live_buffer_preview_enabled(not state.config.live_buffer_preview)
-  end, {})
+  for _, command in ipairs(toggle_commands) do
+    create_command(command.prefix .. "Enable", function()
+      require("dpview")[command.setter](true)
+    end)
+    create_command(command.prefix .. "Disable", function()
+      require("dpview")[command.setter](false)
+    end)
+    create_command(command.prefix .. "Toggle", function()
+      require("dpview")[command.setter](not command.current())
+    end)
+  end
 end
 
 local function current_settings_payload()
@@ -180,11 +196,11 @@ local function sync_settings()
     body = vim.json.encode(current_settings_payload()),
   }, function(err, response, payload)
     if err then
-      notify(vim.log.levels.ERROR, "failed to sync settings: " .. err)
+      notify.send(state, vim.log.levels.ERROR, "failed to sync settings: " .. err)
       return
     end
     if response.status ~= 200 or not payload or payload.ok ~= true then
-      notify(vim.log.levels.ERROR, "dpview rejected updated settings")
+      notify.send(state, vim.log.levels.ERROR, "dpview rejected updated settings")
     end
   end)
 end
@@ -223,7 +239,7 @@ function M.start()
   server.start(state, function(ok, err)
     if not ok then
       if err then
-        notify(vim.log.levels.ERROR, err)
+        notify.send(state, vim.log.levels.ERROR, err)
       end
       return
     end
@@ -245,7 +261,7 @@ function M.open()
   server.start(state, function(ok, err)
     if not ok then
       if err then
-        notify(vim.log.levels.ERROR, err)
+        notify.send(state, vim.log.levels.ERROR, err)
       end
       return
     end
@@ -253,6 +269,13 @@ function M.open()
     sync.sync_current(state, { bufnr = 0, force_start = true, force_current = true })
     sync.sync_live_preview(state, { bufnr = 0, immediate = true })
   end)
+end
+
+local function set_boolean_config(config_key, enabled, description)
+  local value = enabled and true or false
+  state.config[config_key] = value
+  sync_settings()
+  notify.send(state, vim.log.levels.INFO, description .. " " .. (value and "enabled" or "disabled"))
 end
 
 function M.status()
@@ -291,30 +314,15 @@ function M.status()
 end
 
 function M.set_seek_enabled(enabled)
-  state.config.cursor_seek = enabled and true or false
-  sync_settings()
-  notify(
-    vim.log.levels.INFO,
-    "DPview seeking " .. (state.config.cursor_seek and "enabled" or "disabled")
-  )
+  set_boolean_config("cursor_seek", enabled, "DPview seeking")
 end
 
 function M.set_file_sync_enabled(enabled)
-  state.config.editor_file_sync = enabled and true or false
-  sync_settings()
-  notify(
-    vim.log.levels.INFO,
-    "DPview editor file sync " .. (state.config.editor_file_sync and "enabled" or "disabled")
-  )
+  set_boolean_config("editor_file_sync", enabled, "DPview editor file sync")
 end
 
 function M.set_live_buffer_preview_enabled(enabled)
-  state.config.live_buffer_preview = enabled and true or false
-  sync_settings()
-  notify(
-    vim.log.levels.INFO,
-    "DPview live buffer preview " .. (state.config.live_buffer_preview and "enabled" or "disabled")
-  )
+  set_boolean_config("live_buffer_preview", enabled, "DPview live buffer preview")
 end
 
 function M._state()
