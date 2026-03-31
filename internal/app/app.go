@@ -1,9 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,7 +31,16 @@ type Service struct {
 	watcherEnabled    atomic.Bool
 	activeLivePreview *livePreviewState
 	latestLivePreview map[string]int64
+	logLevel          logLevel
 }
+
+type logLevel int
+
+const (
+	logLevelDebug logLevel = iota
+	logLevelInfo
+	logLevelError
+)
 
 type livePreviewState struct {
 	path          string
@@ -41,15 +52,17 @@ type LivePreviewRequest struct {
 	Path    string
 	Origin  string
 	Content []byte
+	Edits   []api.TextEdit
 	Version int64
 }
 
-func New(files *files.Service, renderer *render.Service, store *state.Store) *Service {
+func New(files *files.Service, renderer *render.Service, store *state.Store, level string) *Service {
 	return &Service{
 		files:             files,
 		renderer:          renderer,
 		store:             store,
 		latestLivePreview: make(map[string]int64),
+		logLevel:          parseLogLevel(level),
 	}
 }
 
@@ -98,6 +111,14 @@ func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.Curre
 	if live != nil {
 		sourceVersion = live.sourceVersion
 	}
+	s.logDebug(
+		"current",
+		"select_file",
+		"Selecting current file",
+		fmt.Sprintf("origin=%s transient=%t source_version=%d selection_changed=%t", valueOrDefault(origin, "api"), transient, sourceVersion, selectionChanged),
+		info.Path,
+		"set current",
+	)
 	s.store.PublishRenderStarted(&info, transient, sourceVersion)
 	var preview api.Preview
 	if live != nil {
@@ -111,6 +132,14 @@ func (s *Service) SetCurrent(ctx context.Context, rel, origin string) (api.Curre
 	if origin == "" {
 		origin = "api"
 	}
+	s.logDebug(
+		"current",
+		"current_ready",
+		"Current file preview ready",
+		fmt.Sprintf("origin=%s transient=%t status=%s duration_ms=%d", origin, transient, preview.Status, preview.RenderDurationMS),
+		info.Path,
+		"set current",
+	)
 	return s.store.SetCurrent(&info, preview, origin, selectionChanged, transient, sourceVersion), http.StatusOK, nil
 }
 
@@ -143,20 +172,77 @@ func (s *Service) SetLivePreview(ctx context.Context, req LivePreviewRequest) (a
 	}
 
 	selectionChanged := s.currentPath() != info.Path
+	s.logDebug(
+		"live_preview",
+		"render_started",
+		"Processing live preview update",
+		fmt.Sprintf("origin=%s version=%d edits=%d selection_changed=%t", valueOrDefault(req.Origin, "editor"), req.Version, len(req.Edits), selectionChanged),
+		info.Path,
+		"live preview",
+	)
 	s.store.PublishRenderStarted(&info, true, req.Version)
-	preview := s.renderer.RenderSource(ctx, info, abs, req.Content, settings, true)
+	prevLive := s.activeLivePreviewForPath(info.Path)
+	prevSource := []byte(nil)
+	if prevLive != nil {
+		prevSource = append([]byte(nil), prevLive.content...)
+	}
+	nextSource, applyErr := resolveLivePreviewSource(prevSource, req.Content, req.Edits)
+	if applyErr != nil {
+		err := api.NewError("invalid_live_preview_edits", "Invalid live preview edits", applyErr.Error())
+		s.logAPIError("live_preview", err, info.Path, "apply live preview edits")
+		return api.CurrentData{}, http.StatusBadRequest, err
+	}
+	preview := s.renderer.RenderSource(ctx, info, abs, nextSource, settings, true)
 	if preview.Error != nil {
 		s.logPreviewError("live_preview", info.Path, preview.Error)
+	}
+	if info.Kind == files.KindMarkdown && len(req.Edits) > 0 {
+		s.logDebug(
+			"live_preview",
+			"markdown_full_render",
+			"Rendered full markdown preview update",
+			fmt.Sprintf("edits=%d bytes=%d", len(req.Edits), len(nextSource)),
+			info.Path,
+			"full render",
+		)
 	}
 	if !s.isLatestLivePreviewVersion(info.Path, req.Version) {
 		err := api.NewError("stale_live_preview", "Discarded an outdated live preview update", info.Path)
 		return s.store.Snapshot().Current, http.StatusConflict, err
 	}
-	s.setActiveLivePreview(info.Path, req.Content, req.Version)
+	s.setActiveLivePreview(info.Path, nextSource, req.Version)
 	if req.Origin == "" {
 		req.Origin = "editor"
 	}
 	return s.store.SetCurrent(&info, preview, req.Origin, selectionChanged, true, req.Version), http.StatusOK, nil
+}
+
+func resolveLivePreviewSource(prevSource, content []byte, edits []api.TextEdit) ([]byte, error) {
+	if len(edits) == 0 {
+		return append([]byte(nil), content...), nil
+	}
+	if len(prevSource) == 0 {
+		return append([]byte(nil), content...), nil
+	}
+	return applyTextEdits(prevSource, edits)
+}
+
+func applyTextEdits(source []byte, edits []api.TextEdit) ([]byte, error) {
+	if len(edits) == 0 {
+		return append([]byte(nil), source...), nil
+	}
+	var out bytes.Buffer
+	cursor := 0
+	for _, edit := range edits {
+		if edit.Start < cursor || edit.Start < 0 || edit.End < edit.Start || edit.End > len(source) {
+			return nil, fmt.Errorf("invalid edit range %d:%d", edit.Start, edit.End)
+		}
+		out.Write(source[cursor:edit.Start])
+		out.WriteString(edit.Text)
+		cursor = edit.End
+	}
+	out.Write(source[cursor:])
+	return out.Bytes(), nil
 }
 
 func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error) {
@@ -182,6 +268,14 @@ func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error
 	if live != nil {
 		sourceVersion = live.sourceVersion
 	}
+	s.logDebug(
+		"refresh",
+		"render_started",
+		"Refreshing current preview",
+		fmt.Sprintf("transient=%t source_version=%d", transient, sourceVersion),
+		info.Path,
+		"refresh",
+	)
 	s.store.PublishRenderStarted(&info, transient, sourceVersion)
 	var preview api.Preview
 	if live != nil {
@@ -192,6 +286,14 @@ func (s *Service) Refresh(ctx context.Context) (api.CurrentData, int, *api.Error
 	if preview.Error != nil {
 		s.logPreviewError("render", info.Path, preview.Error)
 	}
+	s.logDebug(
+		"refresh",
+		"refresh_ready",
+		"Refresh completed",
+		fmt.Sprintf("transient=%t status=%s duration_ms=%d", transient, preview.Status, preview.RenderDurationMS),
+		info.Path,
+		"refresh",
+	)
 	return s.store.SetCurrent(&info, preview, "refresh", false, transient, sourceVersion), http.StatusOK, nil
 }
 
@@ -225,18 +327,59 @@ func (s *Service) SetSeek(_ context.Context, seek api.SeekData) (api.SeekData, i
 		return api.SeekData{}, http.StatusConflict, err
 	}
 
-	return s.store.SetSeek(normalizeSeek(info.Path, seek), "api"), http.StatusOK, nil
+	normalized := normalizeSeek(info.Path, seek)
+	s.logDebug(
+		"seek",
+		"seek_updated",
+		"Applied seek update",
+		fmt.Sprintf("line=%d column=%d top=%d bottom=%d focus=%d", normalized.Line, normalized.Column, normalized.TopLine, normalized.BottomLine, normalized.FocusLine),
+		info.Path,
+		"seek",
+	)
+	return s.store.SetSeek(normalized, "api"), http.StatusOK, nil
 }
 
 func (s *Service) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
 	previous := s.store.Snapshot().Settings.Settings
 	data := s.store.PatchSettings(patch)
+	s.logDebug(
+		"settings",
+		"settings_updated",
+		"Applied settings patch",
+		describeSettingsPatch(patch),
+		"",
+		"settings",
+	)
 	if previous.SeekEnabled && patch.SeekEnabled != nil && !*patch.SeekEnabled {
+		s.logDebug(
+			"settings",
+			"seek_cleared",
+			"Cleared seek state after disabling seek synchronization",
+			"",
+			"",
+			"settings",
+		)
 		s.store.ClearSeek("settings")
 	}
 	if previous.LiveBufferPreviewEnabled && patch.LiveBufferPreviewEnabled != nil && !*patch.LiveBufferPreviewEnabled {
+		s.logDebug(
+			"settings",
+			"live_preview_cleared",
+			"Cleared transient live preview state after disabling live buffer preview",
+			"",
+			"",
+			"settings",
+		)
 		s.clearActiveLivePreviewExcept("")
 		if current := s.store.Snapshot().Current; current.Current && current.Transient {
+			s.logDebug(
+				"settings",
+				"refresh_after_live_preview_disable",
+				"Refreshing current file to reconcile transient preview state",
+				"",
+				pathOrEmpty(current.File),
+				"settings",
+			)
 			_, _, _ = s.Refresh(context.Background())
 		}
 	}
@@ -278,6 +421,14 @@ func (s *Service) HandleWatchEvents(events []watch.Event) {
 			treeDirty = true
 		}
 	}
+	s.logDebug(
+		"watcher",
+		"watch_batch",
+		"Processing filesystem watch events",
+		fmt.Sprintf("events=%d tree_dirty=%t current_dirty=%t", len(events), treeDirty, currentDirty),
+		pathOrEmpty(current),
+		"watch",
+	)
 
 	if treeDirty {
 		if err := s.Rescan(); err != nil {
@@ -297,6 +448,14 @@ func (s *Service) HandleWatchEvents(events []watch.Event) {
 		}
 	}
 	if currentDirty && !snap.Settings.Settings.AutoRefreshPaused {
+		s.logDebug(
+			"watcher",
+			"watch_refresh",
+			"Refreshing current file after watch event",
+			"auto_refresh_paused=false",
+			current.Path,
+			"watch",
+		)
 		_, _, _ = s.Refresh(context.Background())
 	}
 }
@@ -381,6 +540,49 @@ func normalizeSeek(path string, seek api.SeekData) api.SeekData {
 	}
 }
 
+func describeSettingsPatch(patch api.SettingsPatch) string {
+	parts := make([]string, 0, 11)
+	appendBool := func(name string, value *bool) {
+		if value != nil {
+			parts = append(parts, fmt.Sprintf("%s=%t", name, *value))
+		}
+	}
+	appendString := func(name string, value *string) {
+		if value != nil {
+			parts = append(parts, fmt.Sprintf("%s=%s", name, *value))
+		}
+	}
+	appendBool("auto_refresh_paused", patch.AutoRefreshPaused)
+	appendBool("sidebar_collapsed", patch.SidebarCollapsed)
+	appendBool("editor_file_sync_enabled", patch.EditorFileSyncEnabled)
+	appendBool("live_buffer_preview_enabled", patch.LiveBufferPreviewEnabled)
+	appendBool("seek_enabled", patch.SeekEnabled)
+	appendBool("typst_preview_theme", patch.TypstPreviewTheme)
+	appendBool("markdown_frontmatter_visible", patch.MarkdownFrontMatterVisible)
+	appendBool("markdown_frontmatter_expanded", patch.MarkdownFrontMatterExpanded)
+	appendBool("markdown_frontmatter_title", patch.MarkdownFrontMatterTitle)
+	appendString("theme", patch.Theme)
+	appendString("preview_theme", patch.PreviewTheme)
+	if len(parts) == 0 {
+		return "no changes"
+	}
+	return strings.Join(parts, " ")
+}
+
+func pathOrEmpty(info *files.FileInfo) string {
+	if info == nil {
+		return ""
+	}
+	return info.Path
+}
+
+func valueOrDefault(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
 func (s *Service) reserveLivePreviewVersion(path string, version int64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -430,19 +632,42 @@ func (s *Service) clearActiveLivePreviewExcept(path string) {
 	s.activeLivePreview = nil
 }
 
+func parseLogLevel(level string) logLevel {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return logLevelDebug
+	case "error":
+		return logLevelError
+	default:
+		return logLevelInfo
+	}
+}
+
+func (s *Service) shouldLog(level logLevel) bool {
+	return level >= s.logLevel
+}
+
+func (s *Service) appendLog(level logLevel, entry api.LogEntry) {
+	if !s.shouldLog(level) {
+		return
+	}
+	entry.Timestamp = time.Now().UTC()
+	s.store.AppendLog(entry)
+	log.Printf("[%s] %s %s: %s", strings.ToUpper(entry.Level), entry.Source, entry.Code, entry.Message)
+}
+
 func (s *Service) logAPIError(source string, err *api.Error, path string, context string) {
 	if err == nil {
 		return
 	}
-	s.store.AppendLog(api.LogEntry{
-		Timestamp: time.Now().UTC(),
-		Level:     "error",
-		Source:    source,
-		Code:      err.Code,
-		Message:   err.Message,
-		Detail:    err.Detail,
-		Path:      path,
-		Context:   context,
+	s.appendLog(logLevelError, api.LogEntry{
+		Level:   "error",
+		Source:  source,
+		Code:    err.Code,
+		Message: err.Message,
+		Detail:  err.Detail,
+		Path:    path,
+		Context: context,
 	})
 }
 
@@ -454,14 +679,25 @@ func (s *Service) logInternalError(source, message string, err error, path strin
 	if err == nil {
 		return
 	}
-	s.store.AppendLog(api.LogEntry{
-		Timestamp: time.Now().UTC(),
-		Level:     "error",
-		Source:    source,
-		Code:      "internal_error",
-		Message:   message,
-		Detail:    err.Error(),
-		Path:      path,
+	s.appendLog(logLevelError, api.LogEntry{
+		Level:   "error",
+		Source:  source,
+		Code:    "internal_error",
+		Message: message,
+		Detail:  err.Error(),
+		Path:    path,
+	})
+}
+
+func (s *Service) logDebug(source, code, message, detail, path, context string) {
+	s.appendLog(logLevelDebug, api.LogEntry{
+		Level:   "debug",
+		Source:  source,
+		Code:    code,
+		Message: message,
+		Detail:  detail,
+		Path:    path,
+		Context: context,
 	})
 }
 

@@ -1,5 +1,5 @@
 import type { Elements, Page, PreviewRenderResult, State, TreeHandlers } from "./model";
-import type { FrontMatter, LogEntry, TreeNode } from "./types";
+import type { CurrentData, FrontMatter, LogEntry, TreeNode } from "./types";
 
 /** Applies the current transient status and degraded-mode state to the settings panel. */
 export function renderStatus(elements: Elements, state: State): void {
@@ -273,27 +273,21 @@ export function renderPreview(elements: Elements, state: State): PreviewRenderRe
 
     if (preview?.html) {
         elements.previewEl.className = "preview";
-        const wrapper = document.createElement("div");
-        wrapper.className = previewWrapperClass;
-
-        if (file?.kind === "markdown" && state.settings.markdown_frontmatter_visible) {
-            const panel = createFrontMatterPanel(
-                preview.frontmatter,
-                state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded,
-            );
-            if (panel) {
-                wrapper.appendChild(panel);
-            }
+        const wrapper = createPreviewWrapper(
+            current,
+            state.settings.markdown_frontmatter_visible,
+            state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded,
+        );
+        if (!wrapper) {
+            elements.previewEl.className = "preview empty";
+            elements.previewEl.replaceChildren(document.createTextNode("No preview available."));
+            return { serverContentEl: null, markdownRoot: null };
         }
-
-        const serverContentEl = document.createElement("div");
-        serverContentEl.className = "preview-server-html";
-        serverContentEl.innerHTML = preview.html;
-        wrapper.appendChild(serverContentEl);
+        const serverContentEl = wrapper.querySelector<HTMLElement>(".preview-server-html");
         elements.previewEl.replaceChildren(wrapper);
         return {
             serverContentEl,
-            markdownRoot: file?.kind === "markdown" ? wrapper : null,
+            markdownRoot: file?.kind === "markdown" ? serverContentEl : null,
         };
     }
 
@@ -302,6 +296,38 @@ export function renderPreview(elements: Elements, state: State): PreviewRenderRe
         document.createTextNode(file ? "No preview available." : "No file selected."),
     );
     return { serverContentEl: null, markdownRoot: null };
+}
+
+export function createPreviewWrapper(
+    current: CurrentData | null,
+    frontMatterVisible: boolean,
+    frontMatterExpanded: boolean,
+): HTMLElement | null {
+    const file = current?.file;
+    const preview = current?.preview;
+    if (!file || !preview?.html) {
+        return null;
+    }
+    const wrapper = document.createElement("div");
+    wrapper.className =
+        file.kind === "markdown"
+            ? "preview-content markdown-preview"
+            : file.kind === "typst"
+                ? "preview-content typst-preview"
+                : "preview-content";
+
+    if (file.kind === "markdown" && frontMatterVisible) {
+        const panel = createFrontMatterPanel(preview.frontmatter, frontMatterExpanded);
+        if (panel) {
+            wrapper.appendChild(panel);
+        }
+    }
+
+    const serverContentEl = document.createElement("div");
+    serverContentEl.className = "preview-server-html";
+    serverContentEl.innerHTML = preview.html;
+    wrapper.appendChild(serverContentEl);
+    return wrapper;
 }
 
 function resolvePreviewCurrent(state: State): State["current"] {
@@ -390,60 +416,14 @@ export function renderHealth(elements: Elements, state: State): void {
 export function renderLogs(elements: Elements, state: State): void {
     const entries = state.logs?.entries || [];
     elements.clearLogsButton.disabled = entries.length === 0;
+    elements.copyLogsButton.disabled = entries.length === 0;
     if (!entries.length) {
-        const empty = document.createElement("div");
-        empty.className = "status-item";
-        empty.textContent = "No recent Go errors.";
-        elements.logsEl.replaceChildren(empty);
+        elements.logsEl.value = "";
+        elements.logsEl.placeholder = "No recent Go logs.";
         return;
     }
-
-    const fragment = document.createDocumentFragment();
-    for (const entry of entries) {
-        fragment.appendChild(createLogEntry(entry));
-    }
-    elements.logsEl.replaceChildren(fragment);
-}
-
-function createLogEntry(entry: LogEntry): HTMLElement {
-    const article = document.createElement("article");
-    article.className = "log-entry";
-
-    const header = document.createElement("div");
-    header.className = "log-entry-header";
-
-    const title = document.createElement("strong");
-    title.className = "log-entry-title";
-    title.textContent = entry.message;
-
-    const timestamp = document.createElement("time");
-    timestamp.className = "log-entry-time";
-    timestamp.dateTime = entry.timestamp;
-    timestamp.textContent = formatLogTime(entry.timestamp);
-
-    header.append(title, timestamp);
-    article.appendChild(header);
-
-    const meta = document.createElement("div");
-    meta.className = "log-entry-meta";
-    const parts = [entry.level, entry.source, entry.code].filter(Boolean);
-    if (entry.path) {
-        parts.push(entry.path);
-    }
-    if (entry.context) {
-        parts.push(entry.context);
-    }
-    meta.textContent = parts.join(" · ");
-    article.appendChild(meta);
-
-    if (entry.detail) {
-        const detail = document.createElement("pre");
-        detail.className = "log-entry-detail";
-        detail.textContent = entry.detail;
-        article.appendChild(detail);
-    }
-
-    return article;
+    elements.logsEl.placeholder = "";
+    elements.logsEl.value = entries.map(formatLogEntry).join("\n\n");
 }
 
 function formatLogTime(value: string): string {
@@ -452,6 +432,30 @@ function formatLogTime(value: string): string {
         return value;
     }
     return parsed.toLocaleString();
+}
+
+function formatLogEntry(entry: LogEntry): string {
+    const header = [
+        `[${(entry.level || "info").toUpperCase()}]`,
+        formatLogTime(entry.timestamp),
+        entry.source || "app",
+        entry.code || "event",
+    ].filter(Boolean).join(" ");
+    const lines = [header, entry.message || ""];
+    const meta = [];
+    if (entry.path) {
+        meta.push(`path=${entry.path}`);
+    }
+    if (entry.context) {
+        meta.push(`context=${entry.context}`);
+    }
+    if (meta.length) {
+        lines.push(meta.join(" "));
+    }
+    if (entry.detail) {
+        lines.push(entry.detail);
+    }
+    return lines.join("\n");
 }
 
 function formatBytes(value: number): string {

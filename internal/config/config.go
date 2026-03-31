@@ -24,6 +24,7 @@ type Config struct {
 	PreviewTheme                string
 	TypstBinary                 string
 	OpenBrowser                 bool
+	LogLevel                    string
 	MaxFileSize                 int64
 	RenderTimeout               time.Duration
 }
@@ -46,6 +47,7 @@ func Parse() (Config, error) {
 	flag.StringVar(&cfg.PreviewTheme, "preview-theme", "default", "initial preview theme id")
 	flag.StringVar(&cfg.TypstBinary, "typst-binary", "", "path to Typst executable to use instead of PATH lookup")
 	flag.BoolVar(&cfg.OpenBrowser, "open-browser", false, "open the browser after startup")
+	flag.StringVar(&cfg.LogLevel, "log-level", "info", "log level: debug, info, or error")
 	flag.Int64Var(&cfg.MaxFileSize, "max-file-size", 4<<20, "maximum previewable source size in bytes")
 	flag.DurationVar(&cfg.RenderTimeout, "render-timeout", 5*time.Second, "per-render timeout")
 	flag.Parse()
@@ -71,6 +73,9 @@ func Parse() (Config, error) {
 	}
 	if cfg.MaxFileSize <= 0 {
 		return Config{}, fmt.Errorf("invalid max file size %d", cfg.MaxFileSize)
+	}
+	if cfg.LogLevel != "debug" && cfg.LogLevel != "info" && cfg.LogLevel != "error" {
+		return Config{}, fmt.Errorf("invalid log level %q", cfg.LogLevel)
 	}
 	if cfg.RenderTimeout <= 0 {
 		return Config{}, fmt.Errorf("invalid render timeout %s", cfg.RenderTimeout)

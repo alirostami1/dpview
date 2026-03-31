@@ -13,7 +13,6 @@ CONTENTS                                              *dpview-config-contents*
 >
     require("dpview").setup({
       binary = nil,
-      go_run_fallback = true,
       host = "127.0.0.1",
       port = nil,
       sidebar_collapsed = false,
@@ -30,6 +29,7 @@ CONTENTS                                              *dpview-config-contents*
       markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
+      log_level = "info",
       notify = true,
       open_cmd = nil,
     })
@@ -39,8 +39,6 @@ CONTENTS                                              *dpview-config-contents*
 2. Options                                              *dpview-config-options*
 
 - `binary`: explicit path to the `dpview` executable
-- `go_run_fallback`: allow `go run ./cmd/dpview` when this repo is the startup
-  root
 - `host`: bind address for the local server
 - `port`: fixed port, or `nil` to auto-pick a free localhost port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed
@@ -55,6 +53,7 @@ CONTENTS                                              *dpview-config-contents*
 - `cursor_seek_debounce_ms`: debounce delay for cursor and viewport seek sync
 - `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer
   preview update; defaults to `200`
+- `log_level`: DPview server log level, one of `debug`, `info`, or `error`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly
   without injecting preview theme tokens
 - `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown
@@ -71,7 +70,7 @@ CONTENTS                                              *dpview-config-contents*
 
 Sidebar, sync, and theme values are passed to DPview at startup with the
 matching CLI flags, including `--editor-file-sync`, `--live-buffer-preview`,
-`--seek-enabled`, `--typst-preview-theme`,
+`--seek-enabled`, `--log-level`, `--typst-preview-theme`,
 `--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
 `--markdown-frontmatter-title`.
 

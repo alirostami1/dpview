@@ -65,7 +65,7 @@ func main() {
 		Theme:                       cfg.Theme,
 		PreviewTheme:                cfg.PreviewTheme,
 	})
-	application := app.New(fileService, renderer, store)
+	application := app.New(fileService, renderer, store, cfg.LogLevel)
 	if err := application.Rescan(); err != nil {
 		log.Fatalf("scan root: %v", err)
 	}

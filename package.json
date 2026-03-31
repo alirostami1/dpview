@@ -8,6 +8,7 @@
     "watch:web": "esbuild cmd/dpview/web-src/app.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=cmd/dpview/web/app.js --watch"
   },
   "dependencies": {
+    "morphdom": "^2.7.8",
     "zod": "^4.3.6"
   },
   "devDependencies": {

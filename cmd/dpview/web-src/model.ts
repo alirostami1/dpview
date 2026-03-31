@@ -87,7 +87,8 @@ export interface Elements {
     markdownThemeCSS: HTMLLinkElement;
     statusEl: HTMLElement;
     healthEl: HTMLElement;
-    logsEl: HTMLElement;
+    logsEl: HTMLTextAreaElement;
+    copyLogsButton: HTMLButtonElement;
     clearLogsButton: HTMLButtonElement;
     searchInput: HTMLInputElement;
     sidebarFilesTab: HTMLButtonElement;

@@ -6,7 +6,6 @@ local M = {}
 
 local defaults = {
   binary = nil,
-  go_run_fallback = true,
   host = "127.0.0.1",
   port = nil,
   sidebar_collapsed = false,
@@ -23,6 +22,7 @@ local defaults = {
   live_buffer_preview_debounce_ms = 200,
   auto_start = true,
   auto_open_browser = false,
+  log_level = "info",
   notify = true,
   open_cmd = nil,
 }
@@ -266,6 +266,7 @@ function M.status()
     ("live_buffer_preview_debounce_ms: %s"):format(tostring(state.config.live_buffer_preview_debounce_ms)),
     ("theme: %s"):format(state.config.theme or "unset"),
     ("preview_theme: %s"):format(state.config.preview_theme or "unset"),
+    ("log_level: %s"):format(state.config.log_level or "info"),
     ("typst_preview_theme: %s"):format(state.config.typst_preview_theme and "true" or "false"),
     ("markdown_frontmatter_visible: %s"):format(state.config.markdown_frontmatter_visible and "true" or "false"),
     ("markdown_frontmatter_expanded: %s"):format(state.config.markdown_frontmatter_expanded and "true" or "false"),

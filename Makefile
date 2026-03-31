@@ -34,5 +34,5 @@ dev:
 nvim-sample: build
 	nvim examples/sample.md \
 		--cmd 'set runtimepath^=$(CURDIR)' \
-		--cmd 'lua require("dpview").setup({ binary = "$(CURDIR)/build/dpview", port = 8484, sidebar_collapsed = false, editor_file_sync = true, live_buffer_preview = true, cursor_seek = true, typst_preview_theme = true, markdown_frontmatter_visible = true, markdown_frontmatter_expanded = true, markdown_frontmatter_title = true, auto_start = true, auto_open_browser = true, notify = true, preview_theme = "github" })' \
+		--cmd 'lua require("dpview").setup({ binary = "$(CURDIR)/build/dpview", port = 8484, sidebar_collapsed = false, editor_file_sync = true, live_buffer_preview = true, cursor_seek = true, typst_preview_theme = true, markdown_frontmatter_visible = true, markdown_frontmatter_expanded = true, markdown_frontmatter_title = true, auto_start = true, auto_open_browser = true, log_level = "debug", notify = true, preview_theme = "github" })' \
 		-c 'DPviewOpen'

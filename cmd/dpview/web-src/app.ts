@@ -1,3 +1,4 @@
+import morphdom from "morphdom";
 import { applyPreviewSeek } from "./seek";
 import { encodeAppPath, parseRoute } from "./routes";
 import { apiFetch } from "./api";
@@ -21,6 +22,7 @@ import {
 } from "./actions";
 import {
     bindFrontMatterState,
+    createPreviewWrapper,
     renderHealth,
     renderLogs,
     renderNotFound,
@@ -52,7 +54,6 @@ import { parseEventData } from "./validation";
 import type {
     ApiResult,
     CurrentData,
-    FrontMatter,
     LogData,
     PreviewTheme,
     ResolvedTheme,
@@ -97,7 +98,8 @@ const elements: Elements = {
     markdownThemeCSS: requiredElement<HTMLLinkElement>("markdown-theme-css"),
     statusEl: requiredElement<HTMLElement>("status"),
     healthEl: requiredElement<HTMLElement>("health"),
-    logsEl: requiredElement<HTMLElement>("logs"),
+    logsEl: requiredElement<HTMLTextAreaElement>("logs"),
+    copyLogsButton: requiredElement<HTMLButtonElement>("copy-logs"),
     searchInput: requiredElement<HTMLInputElement>("search"),
     sidebarFilesTab: requiredElement<HTMLButtonElement>("sidebar-files-tab"),
     sidebarSettingsTab: requiredElement<HTMLButtonElement>("sidebar-settings-tab"),
@@ -218,6 +220,19 @@ function bindUIEvents(): void {
         clearClientError();
         applyLogs(result.data);
         updateStatus("Log cleared.");
+    });
+    elements.copyLogsButton.addEventListener("click", async () => {
+        const text = elements.logsEl.value;
+        if (!text) {
+            updateStatus("No log to copy.");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(text);
+            updateStatus("Log copied.");
+        } catch (error) {
+            setClientError(error instanceof Error ? error.message : "Failed to copy log.");
+        }
     });
     window.addEventListener("popstate", () => {
         applyRoute(parseRoute(window.location.pathname));
@@ -561,6 +576,47 @@ function renderPreviewUI(): void {
     }
 }
 
+function morphMarkdownPreview(previous: CurrentData | null, current: CurrentData | null): boolean {
+    if (
+        !previous ||
+        !current ||
+        previous.file?.path !== current.file?.path ||
+        previous.file?.kind !== "markdown" ||
+        current.file?.kind !== "markdown" ||
+        current.preview.status !== "ready" ||
+        !current.preview.html ||
+        current.preview.error
+    ) {
+        return false;
+    }
+
+    const existingWrapper = elements.previewEl.querySelector<HTMLElement>(".preview-content.markdown-preview");
+    if (!existingWrapper) {
+        return false;
+    }
+
+    rememberFrontMatterState(elements, state);
+    const nextWrapper = createPreviewWrapper(
+        current,
+        state.settings.markdown_frontmatter_visible,
+        state.frontMatterExpanded ?? state.settings.markdown_frontmatter_expanded,
+    );
+    if (!nextWrapper) {
+        return false;
+    }
+
+    morphdom(existingWrapper, nextWrapper);
+    elements.previewEl.className = "preview";
+    elements.previewEl.setAttribute("aria-busy", "false");
+    bindFrontMatterState(elements, state);
+
+    const markdownRoot = existingWrapper.querySelector<HTMLElement>(".preview-server-html");
+    if (markdownRoot) {
+        renderMarkdownMath(markdownRoot);
+    }
+    return true;
+}
+
 function renderSettingsUI(): void {
     renderStatus(elements, state);
     renderHealth(elements, state);
@@ -659,13 +715,18 @@ function applyFiles(data: typeof filesDataSchema._output): void {
 }
 
 function applyCurrent(data: CurrentData): void {
+    const previousCurrent = state.current;
     const previousLocalSelection = state.localSelectionInFlight;
     applyCurrentState(state, data);
     const path = data.file?.path || "";
     localStorage.setItem(STORAGE.currentPath, path);
     syncLocationPath(path);
     renderTreeUI();
-    renderPreviewUI();
+    if (morphMarkdownPreview(previousCurrent, state.current)) {
+        queueApplySeek();
+    } else {
+        renderPreviewUI();
+    }
     if (previousLocalSelection && previousLocalSelection !== path) {
         updateStatus(`Switched externally to ${path || "no file"}.`);
     } else if (!state.statusMessage || previousLocalSelection) {

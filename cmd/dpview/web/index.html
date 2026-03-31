@@ -152,10 +152,13 @@
 
             <section class="settings-block">
               <div class="settings-block-header">
-                <h2>Error Log</h2>
-                <button id="clear-logs" type="button">Clear log</button>
+                <h2>Runtime Log</h2>
+                <div class="settings-block-actions">
+                  <button id="copy-logs" type="button">Copy log</button>
+                  <button id="clear-logs" type="button">Clear log</button>
+                </div>
               </div>
-              <div id="logs" class="log-list" aria-live="polite"></div>
+              <textarea id="logs" class="log-output" aria-live="polite" readonly spellcheck="false"></textarea>
             </section>
           </div>
         </section>

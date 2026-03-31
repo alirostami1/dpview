@@ -7,10 +7,6 @@ local function join(...)
   return table.concat({ ... }, "/")
 end
 
-local function path_exists(path)
-  return path and uv.fs_stat(path) ~= nil
-end
-
 local function is_file(path)
   local stat = path and uv.fs_stat(path) or nil
   return stat and stat.type == "file" or false
@@ -38,10 +34,6 @@ local function pick_free_port(host)
   return sockname.port
 end
 
-local function repo_go_fallback(root)
-  return path_exists(join(root, "go.mod")) and path_exists(join(root, "cmd", "dpview", "main.go"))
-end
-
 function M.resolve_command(state)
   local root = state.startup_root
   local config = state.config
@@ -62,10 +54,6 @@ function M.resolve_command(state)
     if is_executable(candidate) then
       return { candidate }, "repo build"
     end
-  end
-
-  if config.go_run_fallback and repo_go_fallback(root) then
-    return { "go", "run", "./cmd/dpview" }, "go run fallback"
   end
 
   return nil, "dpview executable not found"
@@ -202,6 +190,8 @@ function M.start(state, callback)
     state.config.theme,
     "--preview-theme",
     state.config.preview_theme,
+    "--log-level",
+    state.config.log_level,
     "--typst-preview-theme=" .. tostring(state.config.typst_preview_theme),
     "--markdown-frontmatter-visible=" .. tostring(state.config.markdown_frontmatter_visible),
     "--markdown-frontmatter-expanded=" .. tostring(state.config.markdown_frontmatter_expanded),

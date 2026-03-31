@@ -41,10 +41,11 @@ type CurrentRequest struct {
 }
 
 type LivePreviewRequest struct {
-	Path    string `json:"path"`
-	Origin  string `json:"origin"`
-	Content string `json:"content"`
-	Version int64  `json:"version"`
+	Path    string         `json:"path"`
+	Origin  string         `json:"origin"`
+	Content string         `json:"content"`
+	Edits   []api.TextEdit `json:"edits"`
+	Version int64          `json:"version"`
 }
 
 type SeekRequest struct {
@@ -152,6 +153,7 @@ func (s *Server) handleSetLivePreview(w http.ResponseWriter, r *http.Request) {
 		Path:    req.Path,
 		Origin:  req.Origin,
 		Content: []byte(req.Content),
+		Edits:   req.Edits,
 		Version: req.Version,
 	})
 	if err != nil {

@@ -30,6 +30,11 @@ type markdownRenderer struct {
 }
 
 var markdownParagraphPattern = regexp.MustCompile(`(?s)<p\b[^>]*>(.*?)</p>`)
+var markdownReferenceDefinitionPattern = regexp.MustCompile(`(?m)^[ \t]{0,3}\[[^\]]+\]:`)
+var markdownFootnoteDefinitionPattern = regexp.MustCompile(`(?m)^[ \t]{0,3}\[\^[^\]]+\]:`)
+var markdownFencePattern = regexp.MustCompile("(?m)^[ \\t]{0,3}(```|~~~)")
+var markdownATXH1Pattern = regexp.MustCompile(`(?m)^[ \t]{0,3}#[ \t]+`)
+var markdownSetextH1Pattern = regexp.MustCompile(`(?m)^[^\n]+\n=+[ \t]*(?:\n|$)`)
 
 func newMarkdownRenderer() *markdownRenderer {
 	policy := bluemonday.UGCPolicy()
@@ -82,17 +87,15 @@ func (r *markdownRenderer) Status() api.RendererStatus {
 }
 
 func (r *markdownRenderer) Render(_ context.Context, req RenderRequest) api.Preview {
-	body := req.Source
-	frontMatter, strippedBody, ok, err := parseMarkdownFrontMatter(req.Source)
-	bodyLineOffset := 0
+	preview, err := r.renderPreparedMarkdown(req.Source, req.Started, req.Settings)
 	if err != nil {
-		body = req.Source
-		frontMatter = nil
-	} else if ok {
-		body = strippedBody
-		bodyLineOffset = countLeadingRemovedLines(req.Source, body)
+		return errPreview(req.Started, "internal_error", "Failed to render Markdown", err.Error())
 	}
+	return preview
+}
 
+func (r *markdownRenderer) renderPreparedMarkdown(source []byte, started time.Time, settings api.Settings) (api.Preview, error) {
+	body, frontMatter, bodyLineOffset := preprocessMarkdownSource(source)
 	md := r.markdown()
 	doc := md.Parser().Parse(text.NewReader(body))
 	if root, ok := doc.(*ast.Document); ok {
@@ -100,25 +103,38 @@ func (r *markdownRenderer) Render(_ context.Context, req RenderRequest) api.Prev
 	}
 
 	titleHTML := ""
-	if frontMatter != nil && req.Settings.MarkdownFrontMatterTitle && frontMatter.Title != "" && !markdownHasH1(doc) {
+	if frontMatter != nil && settings.MarkdownFrontMatterTitle && frontMatter.Title != "" && !markdownHasH1(doc) {
 		frontMatter.TitleUsed = true
 		titleHTML = "<h1>" + html.EscapeString(frontMatter.Title) + "</h1>"
 	}
-
 	var out bytes.Buffer
 	if err := md.Renderer().Render(&out, body, doc); err != nil {
-		return errPreview(req.Started, "internal_error", "Failed to render Markdown", err.Error())
+		return api.Preview{}, err
 	}
 	rewritten := rewriteMarkdownDisplayMath(out.String())
 	safe := r.sanitize.SanitizeBytes([]byte(rewritten))
 	return api.Preview{
 		HTML:             `<article class="markdown-theme">` + titleHTML + string(safe) + `</article>`,
 		FrontMatter:      frontMatter,
-		SourceLineCount:  countSourceLines(req.Source),
+		SourceLineCount:  countSourceLines(source),
 		UpdatedAt:        time.Now().UTC(),
-		RenderDurationMS: time.Since(req.Started).Milliseconds(),
+		RenderDurationMS: time.Since(started).Milliseconds(),
 		Status:           api.RenderStatusReady,
+	}, nil
+}
+
+func preprocessMarkdownSource(source []byte) ([]byte, *api.FrontMatter, int) {
+	body := source
+	frontMatter, strippedBody, ok, err := parseMarkdownFrontMatter(source)
+	bodyLineOffset := 0
+	if err != nil {
+		return source, nil, 0
 	}
+	if ok {
+		body = strippedBody
+		bodyLineOffset = countLeadingRemovedLines(source, body)
+	}
+	return body, frontMatter, bodyLineOffset
 }
 
 func parseMarkdownFrontMatter(source []byte) (*api.FrontMatter, []byte, bool, error) {

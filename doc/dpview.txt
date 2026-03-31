@@ -42,8 +42,6 @@ The plugin looks for DPview in this order:
 1. `binary` from your setup config, when it is executable
 2. `dpview` on `PATH`
 3. `build/dpview` or `build/main` under Neovim's startup directory
-4. `go run ./cmd/dpview` when `go_run_fallback` is enabled and Neovim was
-   started in this repository
 
 For setup options and examples, see |dpview-setup-overview|.
 

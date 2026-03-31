@@ -9,7 +9,7 @@ Theme settings are passed to DPview as startup flags.
 ## Requirements
 
 - Neovim 0.11+
-- a `dpview` binary on `PATH`, a repo-local build such as `build/dpview` or `build/main`, or this repo available for `go run ./cmd/dpview`
+- a `dpview` binary on `PATH` or a repo-local build such as `build/dpview` or `build/main`
 - `typst` installed if you want Typst previews
 
 The plugin resolves the DPview command in this order:
@@ -17,8 +17,6 @@ The plugin resolves the DPview command in this order:
 1. `binary` from `require("dpview").setup(...)` when it points to an executable
 2. `dpview` found on `PATH`
 3. `build/dpview` or `build/main` under the directory where Neovim was started
-4. `go run ./cmd/dpview` when `go_run_fallback = true` and Neovim was started in this repo
-
 ## Installation
 
 ### lazy.nvim
@@ -39,6 +37,7 @@ The plugin resolves the DPview command in this order:
       markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
+      log_level = "info",
     })
   end,
 }
@@ -62,6 +61,7 @@ use({
       markdown_frontmatter_title = true,
       auto_start = true,
       auto_open_browser = false,
+      log_level = "info",
     })
   end,
 })
@@ -84,6 +84,7 @@ require("dpview").setup({
   markdown_frontmatter_title = true,
   auto_start = true,
   auto_open_browser = false,
+  log_level = "info",
 })
 ```
 
@@ -92,7 +93,6 @@ require("dpview").setup({
 ```lua
 require("dpview").setup({
   binary = nil,
-  go_run_fallback = true,
   host = "127.0.0.1",
   port = nil,
   sidebar_collapsed = false,
@@ -109,6 +109,7 @@ require("dpview").setup({
   markdown_frontmatter_title = true,
   auto_start = true,
   auto_open_browser = false,
+  log_level = "info",
   notify = true,
 })
 ```
@@ -116,7 +117,6 @@ require("dpview").setup({
 Options:
 
 - `binary`: explicit path to the `dpview` executable
-- `go_run_fallback`: allow `go run ./cmd/dpview` when the startup directory is this repo
 - `host`: bind address for the local DPview server
 - `port`: fixed port, or `nil` to let the plugin choose a high local port
 - `sidebar_collapsed`: start DPview with the sidebar collapsed
@@ -127,6 +127,7 @@ Options:
 - `cursor_seek_debounce_ms`: debounce delay for cursor/viewport seek updates
 - `live_buffer_preview`: enable unsaved buffer preview updates while typing
 - `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer preview update; defaults to `200`
+- `log_level`: DPview server log level, one of `debug`, `info`, or `error`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly without injecting preview theme tokens
 - `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown previews
 - `markdown_frontmatter_expanded`: start Markdown front matter panels expanded

@@ -41,15 +41,15 @@ const (
 )
 
 type Preview struct {
-	HTML             string       `json:"html,omitempty"`
-	FrontMatter      *FrontMatter `json:"frontmatter,omitempty"`
+	HTML             string            `json:"html,omitempty"`
+	FrontMatter      *FrontMatter      `json:"frontmatter,omitempty"`
 	TypstSeekAnchors []TypstSeekAnchor `json:"typst_seek_anchors,omitempty"`
-	SourceLineCount  int          `json:"source_line_count,omitempty"`
-	UpdatedAt        time.Time    `json:"updated_at,omitempty"`
-	RenderDurationMS int64        `json:"render_duration_ms,omitempty"`
-	CacheHit         bool         `json:"cache_hit"`
-	Status           RenderStatus `json:"status"`
-	Error            *Error       `json:"error,omitempty"`
+	SourceLineCount  int               `json:"source_line_count,omitempty"`
+	UpdatedAt        time.Time         `json:"updated_at,omitempty"`
+	RenderDurationMS int64             `json:"render_duration_ms,omitempty"`
+	CacheHit         bool              `json:"cache_hit"`
+	Status           RenderStatus      `json:"status"`
+	Error            *Error            `json:"error,omitempty"`
 }
 
 type TypstSeekAnchor struct {
@@ -81,6 +81,12 @@ type CurrentData struct {
 	Origin        string          `json:"origin,omitempty"`
 	Transient     bool            `json:"transient"`
 	SourceVersion int64           `json:"source_version,omitempty"`
+}
+
+type TextEdit struct {
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Text  string `json:"text"`
 }
 
 type SeekData struct {

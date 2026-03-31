@@ -93,7 +93,31 @@ local function buffer_content(bufnr)
   return content
 end
 
-local function post_live_preview(state, relpath, content, version)
+local function diff_edit(previous, current)
+  if previous == nil or previous == current then
+    return nil
+  end
+  local prefix = 0
+  local max_prefix = math.min(#previous, #current)
+  while prefix < max_prefix and previous:byte(prefix + 1) == current:byte(prefix + 1) do
+    prefix = prefix + 1
+  end
+
+  local prev_suffix = #previous
+  local curr_suffix = #current
+  while prev_suffix > prefix and curr_suffix > prefix and previous:byte(prev_suffix) == current:byte(curr_suffix) do
+    prev_suffix = prev_suffix - 1
+    curr_suffix = curr_suffix - 1
+  end
+
+  return {
+    start = prefix,
+    ["end"] = prev_suffix,
+    text = current:sub(prefix + 1, curr_suffix),
+  }
+end
+
+local function post_live_preview(state, relpath, content, version, edits)
   http.request_json({
     method = "POST",
     host = state.config.host,
@@ -103,6 +127,7 @@ local function post_live_preview(state, relpath, content, version)
       path = relpath,
       origin = "editor",
       content = content,
+      edits = edits,
       version = version,
     }),
   }, function(err, response, payload)
@@ -123,6 +148,8 @@ local function post_live_preview(state, relpath, content, version)
       return
     end
     state.server.current_path = relpath
+    state.live.contents = state.live.contents or {}
+    state.live.contents[relpath] = content
   end)
 end
 
@@ -239,6 +266,9 @@ function M.sync_live_preview(state, opts)
   end
 
   local content = buffer_content(bufnr)
+  state.live.contents = state.live.contents or {}
+  local previous = state.live.contents[relpath]
+  local edit = diff_edit(previous, content)
   state.live.seq = (state.live.seq or 0) + 1
   local version = state.live.seq
   local function send_if_current()
@@ -247,7 +277,7 @@ function M.sync_live_preview(state, opts)
     end
 
     local function send_preview()
-      post_live_preview(state, relpath, content, version)
+      post_live_preview(state, relpath, content, version, edit and { edit } or nil)
     end
 
     if server.is_running(state) then
