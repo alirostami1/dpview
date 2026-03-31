@@ -33,7 +33,7 @@ export function applyPreviewSeek(
   previewEl: HTMLElement,
   current: CurrentData | null,
   seek: SeekData | null,
-  settings: Settings,
+  settings: Settings
 ): void {
   const file = current?.file;
   const preview = current?.preview;
@@ -66,7 +66,7 @@ export function applyPreviewSeek(
 function applyMarkdownSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
-  seek: SeekData,
+  seek: SeekData
 ): void {
   const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
   if (!focusLine) {
@@ -78,23 +78,26 @@ function applyMarkdownSeek(
   }
 
   const containing = candidates.filter(
-    (candidate) => focusLine >= candidate.start && focusLine <= candidate.end,
+    (candidate) => focusLine >= candidate.start && focusLine <= candidate.end
   );
 
   if (containing.length) {
     // Prefer the narrowest matching block so large containers do not win over the
     // specific paragraph/list item/code block the editor is currently focused on.
-    const target = containing.reduce<MarkdownSeekCandidate | null>((best, candidate) => {
-      if (!best) {
-        return candidate;
-      }
-      const bestSpan = best.end - best.start;
-      const candidateSpan = candidate.end - candidate.start;
-      if (candidateSpan !== bestSpan) {
-        return candidateSpan < bestSpan ? candidate : best;
-      }
-      return candidate.depth > best.depth ? candidate : best;
-    }, null);
+    const target = containing.reduce<MarkdownSeekCandidate | null>(
+      (best, candidate) => {
+        if (!best) {
+          return candidate;
+        }
+        const bestSpan = best.end - best.start;
+        const candidateSpan = candidate.end - candidate.start;
+        if (candidateSpan !== bestSpan) {
+          return candidateSpan < bestSpan ? candidate : best;
+        }
+        return candidate.depth > best.depth ? candidate : best;
+      },
+      null
+    );
     scrollPreviewToLine(scrollContainer, target, focusLine);
     return;
   }
@@ -102,14 +105,16 @@ function applyMarkdownSeek(
   const before = candidates
     .filter((candidate) => candidate.end < focusLine)
     .reduce<MarkdownSeekCandidate | null>(
-      (best, candidate) => (!best || candidate.end > best.end ? candidate : best),
-      null,
+      (best, candidate) =>
+        !best || candidate.end > best.end ? candidate : best,
+      null
     );
   const after = candidates
     .filter((candidate) => candidate.start > focusLine)
     .reduce<MarkdownSeekCandidate | null>(
-      (best, candidate) => (!best || candidate.start < best.start ? candidate : best),
-      null,
+      (best, candidate) =>
+        !best || candidate.start < best.start ? candidate : best,
+      null
     );
 
   if (before && after) {
@@ -131,7 +136,7 @@ function applyTypstSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
   seek: SeekData,
-  preview: Preview,
+  preview: Preview
 ): void {
   const focusLine = seek.focus_line || seek.line || seek.top_line || 0;
   if (!focusLine) {
@@ -147,26 +152,32 @@ function applyTypstSeek(
     return;
   }
   const scrollRange =
-    getScrollContainerHeight(scrollContainer) - getScrollContainerViewportHeight(scrollContainer);
+    getScrollContainerHeight(scrollContainer) -
+    getScrollContainerViewportHeight(scrollContainer);
   if (scrollRange <= 0) {
     return;
   }
   const progress =
-    totalLines <= 1 ? 0 : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
+    totalLines <= 1
+      ? 0
+      : Math.max(0, Math.min(1, (focusLine - 1) / (totalLines - 1)));
   const targetTop =
-    (progress * getScrollContainerHeight(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
-  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(scrollRange, targetTop)));
+    progress * getScrollContainerHeight(scrollContainer) -
+    getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR;
+  setScrollContainerTop(
+    scrollContainer,
+    Math.max(0, Math.min(scrollRange, targetTop))
+  );
 }
 
 function applyTypstAnchorSeek(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
   focusLine: number,
-  anchors: TypstSeekAnchor[],
+  anchors: TypstSeekAnchor[]
 ): void {
   const containing = anchors.filter(
-    (anchor) => focusLine >= anchor.start_line && focusLine <= anchor.end_line,
+    (anchor) => focusLine >= anchor.start_line && focusLine <= anchor.end_line
   );
   if (containing.length) {
     const target = containing.reduce((best, anchor) => {
@@ -201,7 +212,13 @@ function applyTypstAnchorSeek(
   }, null);
 
   if (before && after) {
-    scrollPreviewBetweenTypstAnchors(scrollContainer, previewEl, before, after, focusLine);
+    scrollPreviewBetweenTypstAnchors(
+      scrollContainer,
+      previewEl,
+      before,
+      after,
+      focusLine
+    );
     return;
   }
   scrollPreviewToTypstAnchor(scrollContainer, previewEl, before || after);
@@ -210,7 +227,7 @@ function applyTypstAnchorSeek(
 function scrollPreviewToTypstAnchor(
   scrollContainer: ScrollContainer,
   previewEl: HTMLElement,
-  anchor: TypstSeekAnchor | null,
+  anchor: TypstSeekAnchor | null
 ): void {
   const point = resolveTypstAnchorPoint(previewEl, anchor);
   if (point === null) {
@@ -219,13 +236,16 @@ function scrollPreviewToTypstAnchor(
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (point - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+    getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR;
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
-      getScrollContainerViewportHeight(scrollContainer),
+      getScrollContainerViewportHeight(scrollContainer)
   );
-  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+  setScrollContainerTop(
+    scrollContainer,
+    Math.max(0, Math.min(maxTop, targetTop))
+  );
 }
 
 function scrollPreviewBetweenTypstAnchors(
@@ -233,37 +253,49 @@ function scrollPreviewBetweenTypstAnchors(
   previewEl: HTMLElement,
   before: TypstSeekAnchor,
   after: TypstSeekAnchor,
-  line: number,
+  line: number
 ): void {
   const beforePoint = resolveTypstAnchorPoint(previewEl, before);
   const afterPoint = resolveTypstAnchorPoint(previewEl, after);
   if (beforePoint === null || afterPoint === null) {
-    scrollPreviewToTypstAnchor(scrollContainer, previewEl, beforePoint === null ? after : before);
+    scrollPreviewToTypstAnchor(
+      scrollContainer,
+      previewEl,
+      beforePoint === null ? after : before
+    );
     return;
   }
   const lineSpan = Math.max(1, after.start_line - before.end_line);
-  const progress = Math.max(0, Math.min(1, (line - before.end_line) / lineSpan));
-  const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
+  const progress = Math.max(
+    0,
+    Math.min(1, (line - before.end_line) / lineSpan)
+  );
+  const targetPoint = beforePoint + (afterPoint - beforePoint) * progress;
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+    getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR;
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
-      getScrollContainerViewportHeight(scrollContainer),
+      getScrollContainerViewportHeight(scrollContainer)
   );
-  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+  setScrollContainerTop(
+    scrollContainer,
+    Math.max(0, Math.min(maxTop, targetTop))
+  );
 }
 
 function resolveTypstAnchorPoint(
   previewEl: HTMLElement,
-  anchor: TypstSeekAnchor | null,
+  anchor: TypstSeekAnchor | null
 ): number | null {
   if (!anchor) {
     return null;
   }
-  const page = previewEl.querySelector<HTMLElement>(`.typst-page[data-page="${anchor.page}"]`);
+  const page = previewEl.querySelector<HTMLElement>(
+    `.typst-page[data-page="${anchor.page}"]`
+  );
   if (!page) {
     return null;
   }
@@ -274,8 +306,11 @@ function resolveTypstAnchorPoint(
   const viewBox = svg.viewBox.baseVal;
   const pageRect = page.getBoundingClientRect();
   const anchorY = Number(anchor.y);
-  const ratio = viewBox && viewBox.height > 0 && Number.isFinite(anchorY) ? anchorY / viewBox.height : 0;
-  return pageRect.top + (pageRect.height * Math.max(0, Math.min(1, ratio)));
+  const ratio =
+    viewBox && viewBox.height > 0 && Number.isFinite(anchorY)
+      ? anchorY / viewBox.height
+      : 0;
+  return pageRect.top + pageRect.height * Math.max(0, Math.min(1, ratio));
 }
 
 /**
@@ -284,8 +319,14 @@ function resolveTypstAnchorPoint(
  * @param previewEl Root preview element.
  * @returns Ordered list of candidate elements for seek calculations.
  */
-function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCandidate[] {
-  return [...previewEl.querySelectorAll<HTMLElement>("[data-source-start-line][data-source-end-line]")]
+function collectMarkdownSeekCandidates(
+  previewEl: HTMLElement
+): MarkdownSeekCandidate[] {
+  return [
+    ...previewEl.querySelectorAll<HTMLElement>(
+      "[data-source-start-line][data-source-end-line]"
+    ),
+  ]
     .map((node) => {
       const start = Number(node.dataset.sourceStartLine || 0);
       const end = Number(node.dataset.sourceEndLine || start);
@@ -301,7 +342,9 @@ function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCand
         depth: countNodeDepth(node),
       };
     })
-    .filter((candidate): candidate is MarkdownSeekCandidate => candidate !== null);
+    .filter(
+      (candidate): candidate is MarkdownSeekCandidate => candidate !== null
+    );
 }
 
 /**
@@ -312,7 +355,11 @@ function collectMarkdownSeekCandidates(previewEl: HTMLElement): MarkdownSeekCand
  */
 function countNodeDepth(node: HTMLElement): number {
   let depth = 0;
-  for (let current = node.parentElement; current; current = current.parentElement) {
+  for (
+    let current = node.parentElement;
+    current;
+    current = current.parentElement
+  ) {
     depth += 1;
   }
   return depth;
@@ -328,7 +375,7 @@ function countNodeDepth(node: HTMLElement): number {
 function scrollPreviewToLine(
   scrollContainer: ScrollContainer,
   candidate: MarkdownSeekCandidate | null,
-  line: number,
+  line: number
 ): void {
   if (!candidate) {
     return;
@@ -336,17 +383,20 @@ function scrollPreviewToLine(
   const nodeRect = candidate.node.getBoundingClientRect();
   const span = Math.max(1, candidate.end - candidate.start);
   const progress = Math.max(0, Math.min(1, (line - candidate.start) / span));
-  const targetPoint = nodeRect.top + (nodeRect.height * progress);
+  const targetPoint = nodeRect.top + nodeRect.height * progress;
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+    getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR;
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
-      getScrollContainerViewportHeight(scrollContainer),
+      getScrollContainerViewportHeight(scrollContainer)
   );
-  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+  setScrollContainerTop(
+    scrollContainer,
+    Math.max(0, Math.min(maxTop, targetTop))
+  );
 }
 
 /**
@@ -362,7 +412,7 @@ function scrollPreviewBetweenCandidates(
   scrollContainer: ScrollContainer,
   before: MarkdownSeekCandidate,
   after: MarkdownSeekCandidate,
-  line: number,
+  line: number
 ): void {
   const beforeRect = before.node.getBoundingClientRect();
   const afterRect = after.node.getBoundingClientRect();
@@ -370,17 +420,20 @@ function scrollPreviewBetweenCandidates(
   const progress = Math.max(0, Math.min(1, (line - before.end) / lineSpan));
   const beforePoint = beforeRect.top + beforeRect.height;
   const afterPoint = afterRect.top;
-  const targetPoint = beforePoint + ((afterPoint - beforePoint) * progress);
+  const targetPoint = beforePoint + (afterPoint - beforePoint) * progress;
   const targetTop =
     getScrollContainerTop(scrollContainer) +
     (targetPoint - getScrollContainerViewportTop(scrollContainer)) -
-    (getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR);
+    getScrollContainerViewportHeight(scrollContainer) * SEEK_VIEWPORT_ANCHOR;
   const maxTop = Math.max(
     0,
     getScrollContainerHeight(scrollContainer) -
-      getScrollContainerViewportHeight(scrollContainer),
+      getScrollContainerViewportHeight(scrollContainer)
   );
-  setScrollContainerTop(scrollContainer, Math.max(0, Math.min(maxTop, targetTop)));
+  setScrollContainerTop(
+    scrollContainer,
+    Math.max(0, Math.min(maxTop, targetTop))
+  );
 }
 
 function getScrollContainerTop(scrollContainer: ScrollContainer): number {
@@ -390,7 +443,10 @@ function getScrollContainerTop(scrollContainer: ScrollContainer): number {
   return window.scrollY || window.pageYOffset || scrollContainer.scrollTop || 0;
 }
 
-function setScrollContainerTop(scrollContainer: ScrollContainer, top: number): void {
+function setScrollContainerTop(
+  scrollContainer: ScrollContainer,
+  top: number
+): void {
   if (!isRootScrollContainer(scrollContainer)) {
     scrollContainer.scrollTo({ top, behavior: "auto" });
     return;
@@ -398,13 +454,17 @@ function setScrollContainerTop(scrollContainer: ScrollContainer, top: number): v
   window.scrollTo({ top, behavior: "auto" });
 }
 
-function getScrollContainerViewportTop(scrollContainer: ScrollContainer): number {
+function getScrollContainerViewportTop(
+  scrollContainer: ScrollContainer
+): number {
   return isRootScrollContainer(scrollContainer)
     ? 0
     : scrollContainer.getBoundingClientRect().top;
 }
 
-function getScrollContainerViewportHeight(scrollContainer: ScrollContainer): number {
+function getScrollContainerViewportHeight(
+  scrollContainer: ScrollContainer
+): number {
   return isRootScrollContainer(scrollContainer)
     ? window.innerHeight
     : scrollContainer.clientHeight;
@@ -417,11 +477,14 @@ function getScrollContainerHeight(scrollContainer: ScrollContainer): number {
   return Math.max(
     scrollContainer.scrollHeight,
     document.body?.scrollHeight || 0,
-    document.documentElement.scrollHeight,
+    document.documentElement.scrollHeight
   );
 }
 
 function isRootScrollContainer(scrollContainer: ScrollContainer): boolean {
   const scrollingElement = document.scrollingElement;
-  return scrollContainer === scrollingElement || scrollContainer === document.documentElement;
+  return (
+    scrollContainer === scrollingElement ||
+    scrollContainer === document.documentElement
+  );
 }

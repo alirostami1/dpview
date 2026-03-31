@@ -77,7 +77,9 @@ local function parse_response(raw)
   end
 
   local headers = parse_headers(header)
-  if headers["transfer-encoding"] and headers["transfer-encoding"]:lower():find("chunked", 1, true) then
+  if
+    headers["transfer-encoding"] and headers["transfer-encoding"]:lower():find("chunked", 1, true)
+  then
     local decoded, chunk_err = decode_chunked(body)
     if chunk_err then
       return nil, chunk_err
