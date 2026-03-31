@@ -54,6 +54,7 @@ export function createLiveEventController(
   }
 
   function startEventStream(attempt: number): void {
+    let reconnectAttempt = attempt;
     setConnectionState(state, "connecting", attempt);
     renderStatus(elements, state);
     renderConnectionBanner(elements, state);
@@ -66,6 +67,7 @@ export function createLiveEventController(
         return;
       }
       state.bootstrapFailed = false;
+      reconnectAttempt = 0;
       setConnectionState(state, "live", 0);
       options.clearClientError();
       renderStatus(elements, state);
@@ -73,56 +75,56 @@ export function createLiveEventController(
     };
 
     source.addEventListener("files_changed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onFilesChanged(
           parseEventData(event, "files_changed", filesDataSchema)
         );
       });
     });
     source.addEventListener("current_changed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onCurrentChanged(
           parseEventData(event, "current_changed", currentDataSchema)
         );
       });
     });
     source.addEventListener("preview_updated", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onPreviewUpdated(
           parseEventData(event, "preview_updated", currentDataSchema)
         );
       });
     });
     source.addEventListener("seek_changed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onSeekChanged(
           parseEventData(event, "seek_changed", seekDataSchema)
         );
       });
     });
     source.addEventListener("logs_changed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onLogsChanged(
           parseEventData(event, "logs_changed", logDataSchema)
         );
       });
     });
     source.addEventListener("render_started", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onRenderStarted(
           parseEventData(event, "render_started", currentDataSchema)
         );
       });
     });
     source.addEventListener("render_failed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onRenderFailed(
           parseEventData(event, "render_failed", currentDataSchema)
         );
       });
     });
     source.addEventListener("settings_changed", (event) => {
-      handleEvent(source, attempt, () => {
+      handleEvent(source, reconnectAttempt, () => {
         options.onSettingsChanged(
           parseEventData(event, "settings_changed", settingsDataSchema)
         );
@@ -133,7 +135,7 @@ export function createLiveEventController(
         return;
       }
       options.setClientError("Live updates disconnected.");
-      scheduleReconnect(source, attempt + 1);
+      scheduleReconnect(source, reconnectAttempt + 1);
     };
   }
 
