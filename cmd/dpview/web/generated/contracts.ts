@@ -156,25 +156,25 @@ export interface HealthData {
     watcher: WatcherStatus;
 }
 
-export const apiErrorSchema: z.ZodType<ApiError> = z.looseObject({
+export const apiErrorSchema: z.ZodType<ApiError> = z.strictObject({
     code: z.string(),
     message: z.string(),
     detail: z.string().optional(),
 });
 
-export const frontMatterEntrySchema: z.ZodType<FrontMatterEntry> = z.looseObject({
+export const frontMatterEntrySchema: z.ZodType<FrontMatterEntry> = z.strictObject({
     key: z.string(),
     value: z.string(),
 });
 
-export const frontMatterSchema: z.ZodType<FrontMatter> = z.looseObject({
+export const frontMatterSchema: z.ZodType<FrontMatter> = z.strictObject({
     format: z.string(),
     title: z.string().optional(),
     title_used: z.boolean(),
     entries: z.array(z.lazy(() => frontMatterEntrySchema)),
 });
 
-export const fileInfoSchema: z.ZodType<FileInfo> = z.looseObject({
+export const fileInfoSchema: z.ZodType<FileInfo> = z.strictObject({
     path: z.string(),
     name: z.string(),
     kind: fileKindSchema,
@@ -183,14 +183,14 @@ export const fileInfoSchema: z.ZodType<FileInfo> = z.looseObject({
     mtime: z.string(),
 });
 
-export const treeNodeSchema: z.ZodType<TreeNode> = z.looseObject({
+export const treeNodeSchema: z.ZodType<TreeNode> = z.strictObject({
     name: z.string(),
     path: z.string().optional(),
     kind: fileKindSchema.optional(),
     children: z.array(z.lazy(() => treeNodeSchema)).optional(),
 });
 
-export const previewSchema: z.ZodType<Preview> = z.looseObject({
+export const previewSchema: z.ZodType<Preview> = z.strictObject({
     html: z.string().optional(),
     frontmatter: z.lazy(() => frontMatterSchema).optional(),
     typst_seek_anchors: z.array(z.lazy(() => typstSeekAnchorSchema)).optional(),
@@ -202,7 +202,7 @@ export const previewSchema: z.ZodType<Preview> = z.looseObject({
     error: z.lazy(() => apiErrorSchema).optional(),
 });
 
-export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.looseObject({
+export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.strictObject({
     start_line: z.number().int(),
     end_line: z.number().int(),
     page: z.number().int(),
@@ -210,7 +210,7 @@ export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.looseObject({
     y: z.number(),
 });
 
-export const currentDataSchema: z.ZodType<CurrentData> = z.looseObject({
+export const currentDataSchema: z.ZodType<CurrentData> = z.strictObject({
     file: z.lazy(() => fileInfoSchema).optional(),
     preview: z.lazy(() => previewSchema),
     version: z.number().int(),
@@ -221,7 +221,7 @@ export const currentDataSchema: z.ZodType<CurrentData> = z.looseObject({
     source_version: z.number().int().optional(),
 });
 
-export const seekDataSchema: z.ZodType<SeekData> = z.looseObject({
+export const seekDataSchema: z.ZodType<SeekData> = z.strictObject({
     path: z.string().optional(),
     line: z.number().int().optional(),
     column: z.number().int().optional(),
@@ -233,14 +233,14 @@ export const seekDataSchema: z.ZodType<SeekData> = z.looseObject({
     origin: z.string().optional(),
 });
 
-export const filesDataSchema: z.ZodType<FilesData> = z.looseObject({
+export const filesDataSchema: z.ZodType<FilesData> = z.strictObject({
     files: z.array(z.lazy(() => fileInfoSchema)),
     tree: z.array(z.lazy(() => treeNodeSchema)),
     version: z.number().int(),
     event_id: z.number().int(),
 });
 
-export const settingsSchema: z.ZodType<Settings> = z.looseObject({
+export const settingsSchema: z.ZodType<Settings> = z.strictObject({
     auto_refresh_paused: z.boolean(),
     sidebar_collapsed: z.boolean(),
     editor_file_sync_enabled: z.boolean(),
@@ -255,13 +255,13 @@ export const settingsSchema: z.ZodType<Settings> = z.looseObject({
     preview_theme: z.string(),
 });
 
-export const settingsDataSchema: z.ZodType<SettingsData> = z.looseObject({
+export const settingsDataSchema: z.ZodType<SettingsData> = z.strictObject({
     settings: z.lazy(() => settingsSchema),
     version: z.number().int(),
     event_id: z.number().int(),
 });
 
-export const logEntrySchema: z.ZodType<LogEntry> = z.looseObject({
+export const logEntrySchema: z.ZodType<LogEntry> = z.strictObject({
     timestamp: z.string(),
     level: z.string(),
     source: z.string(),
@@ -272,29 +272,29 @@ export const logEntrySchema: z.ZodType<LogEntry> = z.looseObject({
     context: z.string().optional(),
 });
 
-export const logDataSchema: z.ZodType<LogData> = z.looseObject({
+export const logDataSchema: z.ZodType<LogData> = z.strictObject({
     entries: z.array(z.lazy(() => logEntrySchema)),
     version: z.number().int(),
     event_id: z.number().int(),
 });
 
-export const rendererStatusSchema: z.ZodType<RendererStatus> = z.looseObject({
+export const rendererStatusSchema: z.ZodType<RendererStatus> = z.strictObject({
     kind: fileKindSchema,
     name: z.string(),
     available: z.boolean(),
     details: z.record(z.string(), z.string()).optional(),
 });
 
-export const limitsSchema: z.ZodType<Limits> = z.looseObject({
+export const limitsSchema: z.ZodType<Limits> = z.strictObject({
     max_file_size_bytes: z.number().int(),
     render_timeout_ms: z.number().int(),
 });
 
-export const watcherStatusSchema: z.ZodType<WatcherStatus> = z.looseObject({
+export const watcherStatusSchema: z.ZodType<WatcherStatus> = z.strictObject({
     enabled: z.boolean(),
 });
 
-export const healthDataSchema: z.ZodType<HealthData> = z.looseObject({
+export const healthDataSchema: z.ZodType<HealthData> = z.strictObject({
     status: z.string(),
     version: z.number().int(),
     event_id: z.number().int(),
