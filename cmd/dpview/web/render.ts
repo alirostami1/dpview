@@ -58,9 +58,13 @@ function connectionLabel(state: State): string {
     return "Connected.";
   }
   if (state.connectionStatus === "connecting") {
-    return state.connectionAttempts > 0
-      ? `Retrying now (${state.connectionAttempts}).`
-      : "Connecting...";
+    if (state.connectionAttempts <= 0) {
+      return "Connecting...";
+    }
+    const seconds = reconnectCountdownSeconds(state);
+    return seconds > 0
+      ? `Reconnecting (${state.connectionAttempts}) in ${seconds}s.`
+      : `Retrying now (${state.connectionAttempts}).`;
   }
   const seconds = reconnectCountdownSeconds(state);
   return state.connectionAttempts > 0

@@ -134,7 +134,6 @@ export function createLiveEventController(
       if (eventSource !== source) {
         return;
       }
-      options.setClientError("Live updates disconnected.");
       scheduleReconnect(source, reconnectAttempt + 1);
     };
   }
@@ -167,7 +166,13 @@ export function createLiveEventController(
     }
     const delay = reconnectDelayMs(attempt);
     const reconnectAt = Date.now() + delay;
-    setConnectionState(state, "degraded", attempt, reconnectAt);
+    // Let the first automatic retry recover quietly before showing a full
+    // disconnected banner for a longer outage.
+    const connectionStatus = attempt > 1 ? "degraded" : "connecting";
+    if (connectionStatus === "degraded") {
+      options.setClientError("Live updates disconnected.");
+    }
+    setConnectionState(state, connectionStatus, attempt, reconnectAt);
     renderStatus(elements, state);
     renderConnectionBanner(elements, state);
     window.clearTimeout(reconnectTimer);
