@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -8,8 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
+	"time"
 
 	"codeberg.org/aros/dpview/internal/api"
 	"codeberg.org/aros/dpview/internal/app"
@@ -27,6 +31,14 @@ var (
 	version = "dev"
 	commit  = "unknown"
 	date    = "unknown"
+)
+
+const (
+	serverReadHeaderTimeout = 5 * time.Second
+	serverReadTimeout       = 30 * time.Second
+	serverWriteTimeout      = 30 * time.Second
+	serverIdleTimeout       = 60 * time.Second
+	serverShutdownTimeout   = 10 * time.Second
 )
 
 func main() {
@@ -107,12 +119,11 @@ func main() {
 		}
 	}
 
-	httpServer := &http.Server{
-		Addr:    cfg.Address(),
-		Handler: server.Routes(),
-	}
+	serverCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	httpServer := newHTTPServer(cfg.Address(), server.Routes())
+	if err := serveWithGracefulShutdown(serverCtx, httpServer); err != nil {
 		application.RecordRuntimeError("server", "server error", err)
 		log.Printf("server error: %v", err)
 		os.Exit(1)
@@ -124,6 +135,50 @@ func versionString() string {
 		return fmt.Sprintf("dpview %s", version)
 	}
 	return fmt.Sprintf("dpview %s (%s, %s)", version, commit, date)
+}
+
+type gracefulServer interface {
+	ListenAndServe() error
+	Shutdown(ctx context.Context) error
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
+		ReadTimeout:       serverReadTimeout,
+		WriteTimeout:      serverWriteTimeout,
+		IdleTimeout:       serverIdleTimeout,
+	}
+}
+
+// Run the serve loop in a goroutine so termination signals can trigger a bounded shutdown.
+func serveWithGracefulShutdown(ctx context.Context, server gracefulServer) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
 type layeredFS struct {
