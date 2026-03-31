@@ -1,0 +1,6 @@
+node_modules
+build
+tmp
+cmd/dpview/build-web
+cmd/dpview/web/generated
+package-lock.json

@@ -1,27 +1,62 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DPview</title>
-    <link rel="stylesheet" href="/styles.css">
-    <link id="markdown-theme-css" rel="stylesheet" href="/themes/markdown/default.css">
+    <link rel="stylesheet" href="/styles.css" />
+    <link
+      id="markdown-theme-css"
+      rel="stylesheet"
+      href="/themes/markdown/default.css"
+    />
   </head>
   <body>
     <div class="app">
       <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
           <div class="sidebar-header-row">
-            <button id="toggle-sidebar" type="button" aria-label="Toggle sidebar">Hide</button>
+            <button
+              id="toggle-sidebar"
+              type="button"
+              aria-label="Toggle sidebar"
+            >
+              Hide
+            </button>
           </div>
-          <div class="sidebar-mode-switch" role="tablist" aria-label="Sidebar mode">
-            <button id="sidebar-files-tab" class="sidebar-mode-button" type="button" role="tab" aria-selected="true">Files</button>
-            <button id="sidebar-settings-tab" class="sidebar-mode-button" type="button" role="tab" aria-selected="false">Settings</button>
+          <div
+            class="sidebar-mode-switch"
+            role="tablist"
+            aria-label="Sidebar mode"
+          >
+            <button
+              id="sidebar-files-tab"
+              class="sidebar-mode-button"
+              type="button"
+              role="tab"
+              aria-selected="true"
+            >
+              Files
+            </button>
+            <button
+              id="sidebar-settings-tab"
+              class="sidebar-mode-button"
+              type="button"
+              role="tab"
+              aria-selected="false"
+            >
+              Settings
+            </button>
           </div>
         </div>
         <section id="sidebar-files-view" class="sidebar-view">
           <div class="sidebar-search-shell">
-            <input id="search" type="search" placeholder="Search files" aria-label="Search files">
+            <input
+              id="search"
+              type="search"
+              placeholder="Search files"
+              aria-label="Search files"
+            />
           </div>
           <nav id="tree" class="tree" aria-label="Files"></nav>
         </section>
@@ -29,21 +64,36 @@
           <div class="settings-shell settings-shell-sidebar">
             <section class="settings-block">
               <h2>Connection & Status</h2>
-              <p class="settings-block-copy">Current app state, renderer availability, and connection health.</p>
-              <div id="status" class="status" role="status" aria-live="polite"></div>
+              <p class="settings-block-copy">
+                Current app state, renderer availability, and connection health.
+              </p>
+              <div
+                id="status"
+                class="status"
+                role="status"
+                aria-live="polite"
+              ></div>
               <div id="health" class="status-list"></div>
             </section>
 
             <section class="settings-block">
               <h2>Preview Settings</h2>
-              <p class="settings-block-copy">Controls that change how DPview follows the active source and renders documents.</p>
+              <p class="settings-block-copy">
+                Controls that change how DPview follows the active source and
+                renders documents.
+              </p>
               <div class="settings-group">
                 <h3>Theme</h3>
-                <p class="settings-group-copy">Pick how the app chrome and rendered documents look.</p>
+                <p class="settings-group-copy">
+                  Pick how the app chrome and rendered documents look.
+                </p>
                 <label class="setting-row">
                   <span class="setting-meta">
                     <span class="setting-label">Interface theme</span>
-                    <span class="setting-description">Choose the DPview app theme, or follow your system setting.</span>
+                    <span class="setting-description"
+                      >Choose the DPview app theme, or follow your system
+                      setting.</span
+                    >
                   </span>
                   <select id="theme">
                     <option value="system">System</option>
@@ -54,7 +104,9 @@
                 <label class="setting-row">
                   <span class="setting-meta">
                     <span class="setting-label">Document style</span>
-                    <span class="setting-description">Select the visual style used for Markdown previews.</span>
+                    <span class="setting-description"
+                      >Select the visual style used for Markdown previews.</span
+                    >
                   </span>
                   <select id="preview-theme">
                     <option value="default">Default</option>
@@ -66,10 +118,13 @@
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Apply style to Typst</span>
-                    <span class="setting-description">Use the selected document style for Typst previews when possible.</span>
+                    <span class="setting-description"
+                      >Use the selected document style for Typst previews when
+                      possible.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="typst-preview-theme" type="checkbox" checked>
+                    <input id="typst-preview-theme" type="checkbox" checked />
                     <span>Enabled</span>
                   </span>
                 </label>
@@ -77,44 +132,59 @@
 
               <div class="settings-group">
                 <h3>Editor Integration</h3>
-                <p class="settings-group-copy">Control how closely the preview follows the active editing session.</p>
+                <p class="settings-group-copy">
+                  Control how closely the preview follows the active editing
+                  session.
+                </p>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Follow active file</span>
-                    <span class="setting-description">Automatically switch the preview when focus moves to a different supported file.</span>
+                    <span class="setting-description"
+                      >Automatically switch the preview when focus moves to a
+                      different supported file.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="editor-file-sync" type="checkbox" checked>
+                    <input id="editor-file-sync" type="checkbox" checked />
                     <span>Enabled</span>
                   </span>
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Preview unsaved edits</span>
-                    <span class="setting-description">Update the preview from in-memory edits while typing, before the file is saved.</span>
+                    <span class="setting-description"
+                      >Update the preview from in-memory edits while typing,
+                      before the file is saved.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="live-buffer-preview" type="checkbox">
+                    <input id="live-buffer-preview" type="checkbox" />
                     <span>Enabled</span>
                   </span>
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Follow scroll position</span>
-                    <span class="setting-description">Keep the preview aligned with the current editing viewport inside the same file.</span>
+                    <span class="setting-description"
+                      >Keep the preview aligned with the current editing
+                      viewport inside the same file.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="seek-enabled" type="checkbox" checked>
+                    <input id="seek-enabled" type="checkbox" checked />
                     <span>Enabled</span>
                   </span>
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Pause file-change refresh</span>
-                    <span class="setting-description">Stop automatic refreshes when files on disk change outside the editor.</span>
+                    <span class="setting-description"
+                      >Stop automatic refreshes when files on disk change
+                      outside the editor.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="pause-refresh" type="checkbox">
+                    <input id="pause-refresh" type="checkbox" />
                     <span>Paused</span>
                   </span>
                 </label>
@@ -122,50 +192,81 @@
 
               <div class="settings-group">
                 <h3>Markdown</h3>
-                <p class="settings-group-copy">Tune Markdown-only features such as math and front matter.</p>
+                <p class="settings-group-copy">
+                  Tune Markdown-only features such as math and front matter.
+                </p>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
                     <span class="setting-label">Render math with LaTeX</span>
-                    <span class="setting-description">Typeset Markdown math with KaTeX. When off, math stays as raw source text.</span>
+                    <span class="setting-description"
+                      >Typeset Markdown math with KaTeX. When off, math stays as
+                      raw source text.</span
+                    >
                   </span>
                   <span class="setting-control">
-                    <input id="latex-enabled" type="checkbox" checked>
+                    <input id="latex-enabled" type="checkbox" checked />
                     <span>Enabled</span>
                   </span>
                 </label>
                 <div class="settings-subgroup">
                   <h4>Front Matter</h4>
-                  <p class="settings-group-copy">Control how YAML front matter is shown and promoted into the preview.</p>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-meta">
-                    <span class="setting-label">Show front matter panel</span>
-                    <span class="setting-description">Display parsed YAML metadata above the rendered document.</span>
-                  </span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-visible" type="checkbox" checked>
-                    <span>Visible</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-meta">
-                    <span class="setting-label">Expand panel by default</span>
-                    <span class="setting-description">Open the front matter panel automatically when a Markdown file loads.</span>
-                  </span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-expanded" type="checkbox" checked>
-                    <span>Enabled</span>
-                  </span>
-                </label>
-                <label class="setting-row setting-row-checkbox">
-                  <span class="setting-meta">
-                    <span class="setting-label">Use front matter title as H1</span>
-                    <span class="setting-description">Insert a top-level heading from <code>title</code> when the document does not already have one.</span>
-                  </span>
-                  <span class="setting-control">
-                    <input id="markdown-frontmatter-title" type="checkbox" checked>
-                    <span>Enabled</span>
-                  </span>
-                </label>
+                  <p class="settings-group-copy">
+                    Control how YAML front matter is shown and promoted into the
+                    preview.
+                  </p>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Show front matter panel</span>
+                      <span class="setting-description"
+                        >Display parsed YAML metadata above the rendered
+                        document.</span
+                      >
+                    </span>
+                    <span class="setting-control">
+                      <input
+                        id="markdown-frontmatter-visible"
+                        type="checkbox"
+                        checked
+                      />
+                      <span>Visible</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label">Expand panel by default</span>
+                      <span class="setting-description"
+                        >Open the front matter panel automatically when a
+                        Markdown file loads.</span
+                      >
+                    </span>
+                    <span class="setting-control">
+                      <input
+                        id="markdown-frontmatter-expanded"
+                        type="checkbox"
+                        checked
+                      />
+                      <span>Enabled</span>
+                    </span>
+                  </label>
+                  <label class="setting-row setting-row-checkbox">
+                    <span class="setting-meta">
+                      <span class="setting-label"
+                        >Use front matter title as H1</span
+                      >
+                      <span class="setting-description"
+                        >Insert a top-level heading from <code>title</code> when
+                        the document does not already have one.</span
+                      >
+                    </span>
+                    <span class="setting-control">
+                      <input
+                        id="markdown-frontmatter-title"
+                        type="checkbox"
+                        checked
+                      />
+                      <span>Enabled</span>
+                    </span>
+                  </label>
                 </div>
               </div>
             </section>
@@ -178,29 +279,48 @@
                   <button id="clear-logs" type="button">Clear log</button>
                 </div>
               </div>
-              <p class="settings-block-copy">Recent runtime events and debug output from the DPview server.</p>
-              <textarea id="logs" class="log-output" aria-live="polite" readonly spellcheck="false"></textarea>
+              <p class="settings-block-copy">
+                Recent runtime events and debug output from the DPview server.
+              </p>
+              <textarea
+                id="logs"
+                class="log-output"
+                aria-live="polite"
+                readonly
+                spellcheck="false"
+              ></textarea>
             </section>
           </div>
         </section>
       </aside>
 
       <main class="main">
-        <button id="show-sidebar" class="show-sidebar hidden" type="button">Show</button>
-        <div id="connection-banner" class="connection-banner hidden" role="alert" aria-live="assertive">
+        <button id="show-sidebar" class="show-sidebar hidden" type="button">
+          Show
+        </button>
+        <div
+          id="connection-banner"
+          class="connection-banner hidden"
+          role="alert"
+          aria-live="assertive"
+        >
           <span id="connection-message"></span>
           <button id="retry-connection" type="button">Retry now</button>
         </div>
 
         <section id="file-view" class="panel">
-          <div id="preview" class="preview empty" tabindex="-1">No file selected.</div>
+          <div id="preview" class="preview empty" tabindex="-1">
+            No file selected.
+          </div>
         </section>
 
         <section id="not-found-view" class="panel hidden">
           <div class="empty-state">
             <p class="empty-state-code">404</p>
             <h1>Page not found</h1>
-            <p id="not-found-message" class="empty-state-copy">That route does not exist in DPview.</p>
+            <p id="not-found-message" class="empty-state-copy">
+              That route does not exist in DPview.
+            </p>
             <button id="go-home" type="button">Go to preview</button>
           </div>
         </section>
@@ -208,4 +328,4 @@
     </div>
     <script src="/app.js" type="module"></script>
   </body>
-  </html>
+</html>

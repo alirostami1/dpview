@@ -105,7 +105,11 @@ local function diff_edit(previous, current)
 
   local prev_suffix = #previous
   local curr_suffix = #current
-  while prev_suffix > prefix and curr_suffix > prefix and previous:byte(prev_suffix) == current:byte(curr_suffix) do
+  while
+    prev_suffix > prefix
+    and curr_suffix > prefix
+    and previous:byte(prev_suffix) == current:byte(curr_suffix)
+  do
     prev_suffix = prev_suffix - 1
     curr_suffix = curr_suffix - 1
   end
@@ -136,11 +140,21 @@ local function post_live_preview(state, relpath, content, version, edits)
       return
     end
 
-    if response.status == 409 and payload and payload.error and payload.error.code == "live_buffer_preview_disabled" then
+    if
+      response.status == 409
+      and payload
+      and payload.error
+      and payload.error.code == "live_buffer_preview_disabled"
+    then
       state.config.live_buffer_preview = false
       return
     end
-    if response.status == 409 and payload and payload.error and payload.error.code == "stale_live_preview" then
+    if
+      response.status == 409
+      and payload
+      and payload.error
+      and payload.error.code == "stale_live_preview"
+    then
       return
     end
     if response.status ~= 200 or not payload or payload.ok ~= true then

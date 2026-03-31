@@ -15,33 +15,33 @@ export const previewThemeSchema = z.enum(previewThemes);
 export type Route = { kind: "file"; path: string };
 
 export interface SettingsPayload {
-    auto_refresh_paused: boolean;
-    sidebar_collapsed: boolean;
-    editor_file_sync_enabled: boolean;
-    live_buffer_preview_enabled: boolean;
-    seek_enabled: boolean;
-    latex_enabled: boolean;
-    typst_preview_theme: boolean;
-    markdown_frontmatter_visible: boolean;
-    markdown_frontmatter_expanded: boolean;
-    markdown_frontmatter_title: boolean;
-    theme: ResolvedTheme;
-    preview_theme: PreviewTheme;
+  auto_refresh_paused: boolean;
+  sidebar_collapsed: boolean;
+  editor_file_sync_enabled: boolean;
+  live_buffer_preview_enabled: boolean;
+  seek_enabled: boolean;
+  latex_enabled: boolean;
+  typst_preview_theme: boolean;
+  markdown_frontmatter_visible: boolean;
+  markdown_frontmatter_expanded: boolean;
+  markdown_frontmatter_title: boolean;
+  theme: ResolvedTheme;
+  preview_theme: PreviewTheme;
 }
 
 export const settingsPayloadSchema: z.ZodType<SettingsPayload> = z.object({
-    auto_refresh_paused: z.boolean(),
-    sidebar_collapsed: z.boolean(),
-    editor_file_sync_enabled: z.boolean(),
-    live_buffer_preview_enabled: z.boolean(),
-    seek_enabled: z.boolean(),
-    latex_enabled: z.boolean(),
-    typst_preview_theme: z.boolean(),
-    markdown_frontmatter_visible: z.boolean(),
-    markdown_frontmatter_expanded: z.boolean(),
-    markdown_frontmatter_title: z.boolean(),
-    theme: resolvedThemeSchema,
-    preview_theme: previewThemeSchema,
+  auto_refresh_paused: z.boolean(),
+  sidebar_collapsed: z.boolean(),
+  editor_file_sync_enabled: z.boolean(),
+  live_buffer_preview_enabled: z.boolean(),
+  seek_enabled: z.boolean(),
+  latex_enabled: z.boolean(),
+  typst_preview_theme: z.boolean(),
+  markdown_frontmatter_visible: z.boolean(),
+  markdown_frontmatter_expanded: z.boolean(),
+  markdown_frontmatter_title: z.boolean(),
+  theme: resolvedThemeSchema,
+  preview_theme: previewThemeSchema,
 });
 
 export const expandedPathsStorageSchema = z.array(z.string());

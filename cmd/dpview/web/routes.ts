@@ -10,7 +10,10 @@ export function encodeAppPath(path: string): string {
   if (!path) {
     return "/";
   }
-  return `/${path.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+  return `/${path
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/")}`;
 }
 
 /**
