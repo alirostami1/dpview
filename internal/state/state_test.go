@@ -45,6 +45,7 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 		EditorFileSyncEnabled:       true,
 		LiveBufferPreviewEnabled:    false,
 		SeekEnabled:                 true,
+		LatexEnabled:                true,
 		TypstPreviewTheme:           true,
 		MarkdownFrontMatterVisible:  true,
 		MarkdownFrontMatterExpanded: false,
@@ -67,6 +68,9 @@ func TestPatchSettingsPreservesUnspecifiedValues(t *testing.T) {
 	}
 	if data.Settings.LiveBufferPreviewEnabled {
 		t.Fatalf("live buffer preview should stay disabled: %+v", data.Settings)
+	}
+	if !data.Settings.LatexEnabled {
+		t.Fatalf("latex should stay enabled: %+v", data.Settings)
 	}
 	if data.Settings.PreviewTheme != "dark" {
 		t.Fatalf("preview theme = %q", data.Settings.PreviewTheme)

@@ -23,6 +23,7 @@ CONTENTS                                              *dpview-config-contents*
       cursor_seek = true,
       cursor_seek_debounce_ms = 80,
       live_buffer_preview_debounce_ms = 200,
+      latex_enabled = true,
       typst_preview_theme = true,
       markdown_frontmatter_visible = true,
       markdown_frontmatter_expanded = true,
@@ -53,6 +54,8 @@ CONTENTS                                              *dpview-config-contents*
 - `cursor_seek_debounce_ms`: debounce delay for cursor and viewport seek sync
 - `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer
   preview update; defaults to `200`
+- `latex_enabled`: enable Markdown LaTeX math rendering and on-demand KaTeX
+  loading in the web preview
 - `log_level`: DPview server log level, one of `debug`, `info`, or `error`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly
   without injecting preview theme tokens
@@ -70,7 +73,7 @@ CONTENTS                                              *dpview-config-contents*
 
 Sidebar, sync, and theme values are passed to DPview at startup with the
 matching CLI flags, including `--editor-file-sync`, `--live-buffer-preview`,
-`--seek-enabled`, `--log-level`, `--typst-preview-theme`,
+`--seek-enabled`, `--latex-enabled`, `--log-level`, `--typst-preview-theme`,
 `--markdown-frontmatter-visible`, `--markdown-frontmatter-expanded`, and
 `--markdown-frontmatter-title`.
 

@@ -249,6 +249,7 @@ func renderCacheKey(info files.FileInfo, source []byte, settings api.Settings, t
 		shortHash(source),
 		fmt.Sprintf("%t", transient),
 		fmt.Sprintf("%t", settings.LiveBufferPreviewEnabled),
+		fmt.Sprintf("%t", settings.LatexEnabled),
 		fmt.Sprintf("%t", settings.TypstPreviewTheme),
 		fmt.Sprintf("%t", settings.MarkdownFrontMatterTitle),
 		settings.Theme,

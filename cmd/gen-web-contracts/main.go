@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	target := filepath.Join(root, "cmd", "dpview", "web-src", "generated", "contracts.ts")
+	target := filepath.Join(root, "cmd", "dpview", "web", "generated", "contracts.ts")
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		fail(err)
 	}
@@ -246,7 +246,11 @@ func (g *generator) schemaExpr(t reflect.Type, owner reflect.Type, passthrough b
 
 func (g *generator) structSchema(t reflect.Type, owner reflect.Type, passthrough bool) string {
 	var out bytes.Buffer
-	out.WriteString("z.object({\n")
+	if passthrough {
+		out.WriteString("z.looseObject({\n")
+	} else {
+		out.WriteString("z.object({\n")
+	}
 	for i := range t.NumField() {
 		field := t.Field(i)
 		if !field.IsExported() {
@@ -263,9 +267,6 @@ func (g *generator) structSchema(t reflect.Type, owner reflect.Type, passthrough
 		out.WriteString(",\n")
 	}
 	out.WriteString("})")
-	if passthrough {
-		out.WriteString(".passthrough()")
-	}
 	return out.String()
 }
 

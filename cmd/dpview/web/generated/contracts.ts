@@ -99,6 +99,7 @@ export interface Settings {
     editor_file_sync_enabled: boolean;
     live_buffer_preview_enabled: boolean;
     seek_enabled: boolean;
+    latex_enabled: boolean;
     typst_preview_theme: boolean;
     markdown_frontmatter_visible: boolean;
     markdown_frontmatter_expanded: boolean;
@@ -155,41 +156,41 @@ export interface HealthData {
     watcher: WatcherStatus;
 }
 
-export const apiErrorSchema: z.ZodType<ApiError> = z.object({
+export const apiErrorSchema: z.ZodType<ApiError> = z.looseObject({
     code: z.string(),
     message: z.string(),
     detail: z.string().optional(),
-}).passthrough();
+});
 
-export const frontMatterEntrySchema: z.ZodType<FrontMatterEntry> = z.object({
+export const frontMatterEntrySchema: z.ZodType<FrontMatterEntry> = z.looseObject({
     key: z.string(),
     value: z.string(),
-}).passthrough();
+});
 
-export const frontMatterSchema: z.ZodType<FrontMatter> = z.object({
+export const frontMatterSchema: z.ZodType<FrontMatter> = z.looseObject({
     format: z.string(),
     title: z.string().optional(),
     title_used: z.boolean(),
     entries: z.array(z.lazy(() => frontMatterEntrySchema)),
-}).passthrough();
+});
 
-export const fileInfoSchema: z.ZodType<FileInfo> = z.object({
+export const fileInfoSchema: z.ZodType<FileInfo> = z.looseObject({
     path: z.string(),
     name: z.string(),
     kind: fileKindSchema,
     size: z.number().int(),
     ext: z.string(),
     mtime: z.string(),
-}).passthrough();
+});
 
-export const treeNodeSchema: z.ZodType<TreeNode> = z.object({
+export const treeNodeSchema: z.ZodType<TreeNode> = z.looseObject({
     name: z.string(),
     path: z.string().optional(),
     kind: fileKindSchema.optional(),
     children: z.array(z.lazy(() => treeNodeSchema)).optional(),
-}).passthrough();
+});
 
-export const previewSchema: z.ZodType<Preview> = z.object({
+export const previewSchema: z.ZodType<Preview> = z.looseObject({
     html: z.string().optional(),
     frontmatter: z.lazy(() => frontMatterSchema).optional(),
     typst_seek_anchors: z.array(z.lazy(() => typstSeekAnchorSchema)).optional(),
@@ -199,17 +200,17 @@ export const previewSchema: z.ZodType<Preview> = z.object({
     cache_hit: z.boolean(),
     status: renderStatusSchema,
     error: z.lazy(() => apiErrorSchema).optional(),
-}).passthrough();
+});
 
-export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.object({
+export const typstSeekAnchorSchema: z.ZodType<TypstSeekAnchor> = z.looseObject({
     start_line: z.number().int(),
     end_line: z.number().int(),
     page: z.number().int(),
     x: z.number(),
     y: z.number(),
-}).passthrough();
+});
 
-export const currentDataSchema: z.ZodType<CurrentData> = z.object({
+export const currentDataSchema: z.ZodType<CurrentData> = z.looseObject({
     file: z.lazy(() => fileInfoSchema).optional(),
     preview: z.lazy(() => previewSchema),
     version: z.number().int(),
@@ -218,9 +219,9 @@ export const currentDataSchema: z.ZodType<CurrentData> = z.object({
     origin: z.string().optional(),
     transient: z.boolean(),
     source_version: z.number().int().optional(),
-}).passthrough();
+});
 
-export const seekDataSchema: z.ZodType<SeekData> = z.object({
+export const seekDataSchema: z.ZodType<SeekData> = z.looseObject({
     path: z.string().optional(),
     line: z.number().int().optional(),
     column: z.number().int().optional(),
@@ -230,36 +231,37 @@ export const seekDataSchema: z.ZodType<SeekData> = z.object({
     version: z.number().int(),
     event_id: z.number().int(),
     origin: z.string().optional(),
-}).passthrough();
+});
 
-export const filesDataSchema: z.ZodType<FilesData> = z.object({
+export const filesDataSchema: z.ZodType<FilesData> = z.looseObject({
     files: z.array(z.lazy(() => fileInfoSchema)),
     tree: z.array(z.lazy(() => treeNodeSchema)),
     version: z.number().int(),
     event_id: z.number().int(),
-}).passthrough();
+});
 
-export const settingsSchema: z.ZodType<Settings> = z.object({
+export const settingsSchema: z.ZodType<Settings> = z.looseObject({
     auto_refresh_paused: z.boolean(),
     sidebar_collapsed: z.boolean(),
     editor_file_sync_enabled: z.boolean(),
     live_buffer_preview_enabled: z.boolean(),
     seek_enabled: z.boolean(),
+    latex_enabled: z.boolean(),
     typst_preview_theme: z.boolean(),
     markdown_frontmatter_visible: z.boolean(),
     markdown_frontmatter_expanded: z.boolean(),
     markdown_frontmatter_title: z.boolean(),
     theme: z.string(),
     preview_theme: z.string(),
-}).passthrough();
+});
 
-export const settingsDataSchema: z.ZodType<SettingsData> = z.object({
+export const settingsDataSchema: z.ZodType<SettingsData> = z.looseObject({
     settings: z.lazy(() => settingsSchema),
     version: z.number().int(),
     event_id: z.number().int(),
-}).passthrough();
+});
 
-export const logEntrySchema: z.ZodType<LogEntry> = z.object({
+export const logEntrySchema: z.ZodType<LogEntry> = z.looseObject({
     timestamp: z.string(),
     level: z.string(),
     source: z.string(),
@@ -268,36 +270,36 @@ export const logEntrySchema: z.ZodType<LogEntry> = z.object({
     detail: z.string().optional(),
     path: z.string().optional(),
     context: z.string().optional(),
-}).passthrough();
+});
 
-export const logDataSchema: z.ZodType<LogData> = z.object({
+export const logDataSchema: z.ZodType<LogData> = z.looseObject({
     entries: z.array(z.lazy(() => logEntrySchema)),
     version: z.number().int(),
     event_id: z.number().int(),
-}).passthrough();
+});
 
-export const rendererStatusSchema: z.ZodType<RendererStatus> = z.object({
+export const rendererStatusSchema: z.ZodType<RendererStatus> = z.looseObject({
     kind: fileKindSchema,
     name: z.string(),
     available: z.boolean(),
     details: z.record(z.string(), z.string()).optional(),
-}).passthrough();
+});
 
-export const limitsSchema: z.ZodType<Limits> = z.object({
+export const limitsSchema: z.ZodType<Limits> = z.looseObject({
     max_file_size_bytes: z.number().int(),
     render_timeout_ms: z.number().int(),
-}).passthrough();
+});
 
-export const watcherStatusSchema: z.ZodType<WatcherStatus> = z.object({
+export const watcherStatusSchema: z.ZodType<WatcherStatus> = z.looseObject({
     enabled: z.boolean(),
-}).passthrough();
+});
 
-export const healthDataSchema: z.ZodType<HealthData> = z.object({
+export const healthDataSchema: z.ZodType<HealthData> = z.looseObject({
     status: z.string(),
     version: z.number().int(),
     event_id: z.number().int(),
     renderers: z.array(z.lazy(() => rendererStatusSchema)),
     limits: z.lazy(() => limitsSchema),
     watcher: z.lazy(() => watcherStatusSchema),
-}).passthrough();
+});
 

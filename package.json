@@ -2,12 +2,13 @@
   "name": "dpview",
   "private": true,
   "scripts": {
-    "bundle:web": "esbuild cmd/dpview/web-src/app.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=cmd/dpview/web/app.js",
+    "bundle:web": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy",
     "typecheck:web": "tsc --project tsconfig.json --noEmit",
     "build:web": "npm run typecheck:web && npm run bundle:web",
-    "watch:web": "esbuild cmd/dpview/web-src/app.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=cmd/dpview/web/app.js --watch"
+    "watch:web": "esbuild cmd/dpview/web/app.ts cmd/dpview/web/katex-runtime.ts cmd/dpview/web/katex-style.css --bundle --format=esm --platform=browser --target=es2022 --outdir=cmd/dpview/build-web --entry-names=[name] --loader:.css=css --loader:.woff=copy --loader:.woff2=copy --loader:.ttf=copy --watch"
   },
   "dependencies": {
+    "katex": "^0.16.44",
     "morphdom": "^2.7.8",
     "zod": "^4.3.6"
   },

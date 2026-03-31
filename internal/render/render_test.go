@@ -44,7 +44,7 @@ func TestRenderMarkdownSupportsCommonFeatures(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "sample.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "sample.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: true})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -142,7 +142,7 @@ func TestRenderSourceMarkdownSupportsTransientContent(t *testing.T) {
 		files.FileInfo{Path: "draft.md", Name: "draft.md", Kind: files.KindMarkdown},
 		path,
 		[]byte("# Draft\n"),
-		api.Settings{},
+		api.Settings{LatexEnabled: true},
 		true,
 	)
 	if preview.Error != nil {
@@ -202,7 +202,7 @@ func TestRenderMarkdownSanitizesUnsafeLinks(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "unsafe.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "unsafe.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: true})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -229,7 +229,7 @@ func TestRenderMarkdownSupportsFootnotes(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: true})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -274,7 +274,7 @@ func TestRenderMarkdownRewritesDisplayMathBlocks(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "math.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "math.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: true})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}
@@ -283,6 +283,82 @@ func TestRenderMarkdownRewritesDisplayMathBlocks(t *testing.T) {
 	}
 	if !strings.Contains(preview.HTML, `data-latex="\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}"`) {
 		t.Fatalf("Render() HTML missing math expression: %q", preview.HTML)
+	}
+}
+
+func TestRenderMarkdownLeavesMathRawWhenLatexDisabled(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "math-disabled.md")
+	content := strings.Join([]string{
+		"Before math.",
+		"",
+		"$$",
+		`\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}`,
+		"$$",
+		"",
+		"After math.",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "math-disabled.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: false})
+	if preview.Error != nil {
+		t.Fatalf("Render() error = %+v", preview.Error)
+	}
+	if strings.Contains(preview.HTML, `class="markdown-math-block"`) {
+		t.Fatalf("Render() HTML unexpectedly rewrote math placeholder: %q", preview.HTML)
+	}
+	if !strings.Contains(preview.HTML, `$$`) {
+		t.Fatalf("Render() HTML should keep raw math delimiters: %q", preview.HTML)
+	}
+}
+
+func TestRenderCacheSeparatesLatexEnabledSetting(t *testing.T) {
+	svc, err := NewService(Config{MaxFileSize: 1 << 20, RenderTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	defer svc.Close()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "math-cache.md")
+	content := strings.Join([]string{
+		"Before math.",
+		"",
+		"$$",
+		`\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}`,
+		"$$",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	info := files.FileInfo{Path: "math-cache.md", Kind: files.KindMarkdown}
+
+	enabled := svc.Render(context.Background(), info, path, api.Settings{LatexEnabled: true})
+	if enabled.Error != nil {
+		t.Fatalf("Render(enabled) error = %+v", enabled.Error)
+	}
+	if !strings.Contains(enabled.HTML, `class="markdown-math-block"`) {
+		t.Fatalf("Render(enabled) HTML missing math placeholder: %q", enabled.HTML)
+	}
+
+	disabled := svc.Render(context.Background(), info, path, api.Settings{LatexEnabled: false})
+	if disabled.Error != nil {
+		t.Fatalf("Render(disabled) error = %+v", disabled.Error)
+	}
+	if strings.Contains(disabled.HTML, `class="markdown-math-block"`) {
+		t.Fatalf("Render(disabled) HTML unexpectedly reused math placeholder: %q", disabled.HTML)
+	}
+	if !strings.Contains(disabled.HTML, `$$`) {
+		t.Fatalf("Render(disabled) HTML should keep raw math delimiters: %q", disabled.HTML)
 	}
 }
 
@@ -306,7 +382,7 @@ func TestRenderMarkdownSupportsRepeatedFootnoteReferences(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes-repeat.md", Kind: files.KindMarkdown}, path, api.Settings{})
+	preview := svc.Render(context.Background(), files.FileInfo{Path: "footnotes-repeat.md", Kind: files.KindMarkdown}, path, api.Settings{LatexEnabled: true})
 	if preview.Error != nil {
 		t.Fatalf("Render() error = %+v", preview.Error)
 	}

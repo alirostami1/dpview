@@ -21,4 +21,4 @@ node_modules/
 Thumbs.db
 
 # Generated web assets
-/cmd/dpview/web/app.js
+/cmd/dpview/build-web/

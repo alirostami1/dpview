@@ -61,6 +61,8 @@ export interface State {
     connectionStatus: ConnectionStatus;
     /** Current reconnect attempt counter. */
     connectionAttempts: number;
+    /** Wall-clock time when the next reconnect attempt will start. */
+    reconnectAt: number;
     /** Whether the initial or latest full-state bootstrap failed. */
     bootstrapFailed: boolean;
     /** Pending animation frame used to coalesce seek updates. */
@@ -102,6 +104,7 @@ export interface Elements {
     editorFileSyncInput: HTMLInputElement;
     liveBufferPreviewInput: HTMLInputElement;
     seekEnabledInput: HTMLInputElement;
+    latexEnabledInput: HTMLInputElement;
     markdownFrontMatterVisibleInput: HTMLInputElement;
     markdownFrontMatterExpandedInput: HTMLInputElement;
     markdownFrontMatterTitleInput: HTMLInputElement;

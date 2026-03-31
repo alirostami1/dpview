@@ -46,6 +46,7 @@ func NewStore() *Store {
 			EditorFileSyncEnabled:       true,
 			LiveBufferPreviewEnabled:    false,
 			SeekEnabled:                 true,
+			LatexEnabled:                true,
 			TypstPreviewTheme:           true,
 			MarkdownFrontMatterVisible:  true,
 			MarkdownFrontMatterExpanded: true,
@@ -326,6 +327,9 @@ func applySettingsPatch(settings *api.Settings, patch api.SettingsPatch) {
 	}
 	if patch.SeekEnabled != nil {
 		settings.SeekEnabled = *patch.SeekEnabled
+	}
+	if patch.LatexEnabled != nil {
+		settings.LatexEnabled = *patch.LatexEnabled
 	}
 	if patch.TypstPreviewTheme != nil {
 		settings.TypstPreviewTheme = *patch.TypstPreviewTheme

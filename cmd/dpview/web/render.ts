@@ -48,16 +48,24 @@ export function renderConnectionBanner(elements: Elements, state: State): void {
 
 function connectionLabel(state: State): string {
     if (state.connectionStatus === "live") {
-        return "Live updates connected.";
+        return "Connected.";
     }
     if (state.connectionStatus === "connecting") {
         return state.connectionAttempts > 0
-            ? `Reconnecting live updates (attempt ${state.connectionAttempts}).`
-            : "Connecting live updates...";
+            ? `Retrying now (${state.connectionAttempts}).`
+            : "Connecting...";
     }
+    const seconds = reconnectCountdownSeconds(state);
     return state.connectionAttempts > 0
-        ? `Live updates degraded. Retry attempt ${state.connectionAttempts} pending.`
-        : "Live updates degraded.";
+        ? `Disconnected. Retry ${state.connectionAttempts} in ${seconds}s.`
+        : `Disconnected. Retry in ${seconds}s.`;
+}
+
+function reconnectCountdownSeconds(state: State): number {
+    if (state.reconnectAt <= 0) {
+        return 0;
+    }
+    return Math.max(0, Math.ceil((state.reconnectAt - Date.now()) / 1000));
 }
 
 /** Applies sidebar visibility state to the shell DOM. */

@@ -16,6 +16,7 @@ type Config struct {
 	EditorFileSync              bool
 	LiveBufferPreviewEnabled    bool
 	SeekEnabled                 bool
+	LatexEnabled                bool
 	TypstPreviewTheme           bool
 	MarkdownFrontMatterVisible  bool
 	MarkdownFrontMatterExpanded bool
@@ -39,6 +40,7 @@ func Parse() (Config, error) {
 	flag.BoolVar(&cfg.EditorFileSync, "editor-file-sync", true, "allow editor integrations to switch the current preview file")
 	flag.BoolVar(&cfg.LiveBufferPreviewEnabled, "live-buffer-preview", false, "allow editor integrations to push unsaved buffer content for preview")
 	flag.BoolVar(&cfg.SeekEnabled, "seek-enabled", true, "enable source seeking between editor integrations and the preview")
+	flag.BoolVar(&cfg.LatexEnabled, "latex-enabled", true, "enable LaTeX math handling in Markdown previews")
 	flag.BoolVar(&cfg.TypstPreviewTheme, "typst-preview-theme", true, "apply DPview preview theming to Typst documents")
 	flag.BoolVar(&cfg.MarkdownFrontMatterVisible, "markdown-frontmatter-visible", true, "show parsed Markdown front matter above the preview")
 	flag.BoolVar(&cfg.MarkdownFrontMatterExpanded, "markdown-frontmatter-expanded", true, "start Markdown front matter panels expanded")

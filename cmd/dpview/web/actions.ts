@@ -82,9 +82,11 @@ export function setConnectionState(
     state: State,
     connectionStatus: ConnectionStatus,
     attempts = state.connectionAttempts,
+    reconnectAt = 0,
 ): void {
     state.connectionStatus = connectionStatus;
     state.connectionAttempts = attempts;
+    state.reconnectAt = reconnectAt;
 }
 
 /** Updates the sidebar search term. */

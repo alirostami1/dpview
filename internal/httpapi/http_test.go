@@ -31,7 +31,6 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 		"styles.css":                  &fstest.MapFile{Data: []byte("style")},
 		"app.js":                      &fstest.MapFile{Data: []byte("app")},
 		"themes/markdown/default.css": &fstest.MapFile{Data: []byte("theme")},
-		"vendor/katex/katex.min.css":  &fstest.MapFile{Data: []byte("katex")},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -84,12 +83,6 @@ func TestRoutesServeHealthFilesAndCurrent(t *testing.T) {
 		t.Fatalf("GET /themes/markdown/default.css status=%d body=%s", resp.StatusCode, body)
 	}
 
-	resp = performRequest(t, handler, http.MethodGet, "/vendor/katex/katex.min.css", "")
-	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || body != "katex" {
-		t.Fatalf("GET /vendor/katex/katex.min.css status=%d body=%s", resp.StatusCode, body)
-	}
-
 	resp = performRequest(t, handler, http.MethodGet, "/notes/test.md", "")
 	body = readBody(t, resp.Body)
 	if resp.StatusCode != http.StatusOK || body != "ok" {
@@ -122,7 +115,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 		seekStatus:    http.StatusConflict,
 		seek:          api.SeekData{Path: "notes/test.md", Line: 12, TopLine: 8, BottomLine: 16, FocusLine: 12},
 		logs:          api.LogData{Entries: []api.LogEntry{{Level: "error", Source: "render", Code: "render_failed", Message: "failed"}}},
-		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, LiveBufferPreviewEnabled: false, SeekEnabled: false, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
+		settings:      api.SettingsData{Settings: api.Settings{AutoRefreshPaused: true, SidebarCollapsed: true, EditorFileSyncEnabled: false, LiveBufferPreviewEnabled: false, SeekEnabled: false, LatexEnabled: true, TypstPreviewTheme: false, MarkdownFrontMatterVisible: true, MarkdownFrontMatterExpanded: false, MarkdownFrontMatterTitle: true, Theme: "dark", PreviewTheme: "github"}},
 	}, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("ok")},
 	})
@@ -182,7 +175,7 @@ func TestSetCurrentRefreshDeleteAndSettings(t *testing.T) {
 
 	resp = performRequest(t, handler, http.MethodPost, "/api/settings", `{"editor_file_sync_enabled":false,"live_buffer_preview_enabled":false,"seek_enabled":false,"preview_theme":"github"}`)
 	body = readBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"live_buffer_preview_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"auto_refresh_paused":true`) || !strings.Contains(body, `"sidebar_collapsed":true`) || !strings.Contains(body, `"editor_file_sync_enabled":false`) || !strings.Contains(body, `"live_buffer_preview_enabled":false`) || !strings.Contains(body, `"seek_enabled":false`) || !strings.Contains(body, `"latex_enabled":true`) || !strings.Contains(body, `"typst_preview_theme":false`) || !strings.Contains(body, `"markdown_frontmatter_visible":true`) || !strings.Contains(body, `"markdown_frontmatter_expanded":false`) || !strings.Contains(body, `"markdown_frontmatter_title":true`) || !strings.Contains(body, `"preview_theme":"github"`) {
 		t.Fatalf("POST /api/settings status=%d body=%s", resp.StatusCode, body)
 	}
 
@@ -272,6 +265,9 @@ func (f fakeApp) UpdateSettingsPatch(patch api.SettingsPatch) api.SettingsData {
 	}
 	if patch.SeekEnabled != nil {
 		settings.SeekEnabled = *patch.SeekEnabled
+	}
+	if patch.LatexEnabled != nil {
+		settings.LatexEnabled = *patch.LatexEnabled
 	}
 	if patch.TypstPreviewTheme != nil {
 		settings.TypstPreviewTheme = *patch.TypstPreviewTheme

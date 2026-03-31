@@ -9,5 +9,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["cmd/dpview/web-src/**/*.ts"]
+  "include": ["cmd/dpview/web/**/*.ts", "cmd/dpview/web/**/*.d.ts"]
 }

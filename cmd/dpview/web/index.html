@@ -6,7 +6,6 @@
     <title>DPview</title>
     <link rel="stylesheet" href="/styles.css">
     <link id="markdown-theme-css" rel="stylesheet" href="/themes/markdown/default.css">
-    <link rel="stylesheet" href="/vendor/katex/katex.min.css">
   </head>
   <body>
     <div class="app">
@@ -29,18 +28,22 @@
         <section id="sidebar-settings-view" class="sidebar-view hidden">
           <div class="settings-shell settings-shell-sidebar">
             <section class="settings-block">
-              <h2>Status</h2>
+              <h2>Connection & Status</h2>
+              <p class="settings-block-copy">Current app state, renderer availability, and connection health.</p>
               <div id="status" class="status" role="status" aria-live="polite"></div>
               <div id="health" class="status-list"></div>
             </section>
 
             <section class="settings-block">
-              <h2>Settings</h2>
+              <h2>Preview Settings</h2>
+              <p class="settings-block-copy">Controls that change how DPview follows the active source and renders documents.</p>
               <div class="settings-group">
-                <h3>Appearance</h3>
+                <h3>Theme</h3>
+                <p class="settings-group-copy">Pick how the app chrome and rendered documents look.</p>
                 <label class="setting-row">
                   <span class="setting-meta">
-                    <span class="setting-label">App theme</span>
+                    <span class="setting-label">Interface theme</span>
+                    <span class="setting-description">Choose the DPview app theme, or follow your system setting.</span>
                   </span>
                   <select id="theme">
                     <option value="system">System</option>
@@ -50,7 +53,8 @@
                 </label>
                 <label class="setting-row">
                   <span class="setting-meta">
-                    <span class="setting-label">Document theme</span>
+                    <span class="setting-label">Document style</span>
+                    <span class="setting-description">Select the visual style used for Markdown previews.</span>
                   </span>
                   <select id="preview-theme">
                     <option value="default">Default</option>
@@ -61,8 +65,8 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Theme Typst previews</span>
-                    <span class="setting-description">Apply the selected document theme to Typst output.</span>
+                    <span class="setting-label">Apply style to Typst</span>
+                    <span class="setting-description">Use the selected document style for Typst previews when possible.</span>
                   </span>
                   <span class="setting-control">
                     <input id="typst-preview-theme" type="checkbox" checked>
@@ -72,11 +76,12 @@
               </div>
 
               <div class="settings-group">
-                <h3>Sync</h3>
+                <h3>Editor Integration</h3>
+                <p class="settings-group-copy">Control how closely the preview follows the active editing session.</p>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Follow editor file</span>
-                    <span class="setting-description">Switch the preview when the editor changes to a different file.</span>
+                    <span class="setting-label">Follow active file</span>
+                    <span class="setting-description">Automatically switch the preview when focus moves to a different supported file.</span>
                   </span>
                   <span class="setting-control">
                     <input id="editor-file-sync" type="checkbox" checked>
@@ -85,8 +90,8 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Live buffer preview</span>
-                    <span class="setting-description">Render unsaved editor content in the preview before the file is written to disk.</span>
+                    <span class="setting-label">Preview unsaved edits</span>
+                    <span class="setting-description">Update the preview from in-memory edits while typing, before the file is saved.</span>
                   </span>
                   <span class="setting-control">
                     <input id="live-buffer-preview" type="checkbox">
@@ -95,8 +100,8 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Follow editor position</span>
-                    <span class="setting-description">Keep the preview aligned with the editor viewport inside the current file.</span>
+                    <span class="setting-label">Follow scroll position</span>
+                    <span class="setting-description">Keep the preview aligned with the current editing viewport inside the same file.</span>
                   </span>
                   <span class="setting-control">
                     <input id="seek-enabled" type="checkbox" checked>
@@ -105,8 +110,8 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Auto refresh</span>
-                    <span class="setting-description">Pause live rerendering when files change on disk.</span>
+                    <span class="setting-label">Pause file-change refresh</span>
+                    <span class="setting-description">Stop automatic refreshes when files on disk change outside the editor.</span>
                   </span>
                   <span class="setting-control">
                     <input id="pause-refresh" type="checkbox">
@@ -116,11 +121,25 @@
               </div>
 
               <div class="settings-group">
-                <h3>Front matter</h3>
+                <h3>Markdown</h3>
+                <p class="settings-group-copy">Tune Markdown-only features such as math and front matter.</p>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Show panel</span>
-                    <span class="setting-description">Display parsed YAML metadata above Markdown previews.</span>
+                    <span class="setting-label">Render math with LaTeX</span>
+                    <span class="setting-description">Typeset Markdown math with KaTeX. When off, math stays as raw source text.</span>
+                  </span>
+                  <span class="setting-control">
+                    <input id="latex-enabled" type="checkbox" checked>
+                    <span>Enabled</span>
+                  </span>
+                </label>
+                <div class="settings-subgroup">
+                  <h4>Front Matter</h4>
+                  <p class="settings-group-copy">Control how YAML front matter is shown and promoted into the preview.</p>
+                <label class="setting-row setting-row-checkbox">
+                  <span class="setting-meta">
+                    <span class="setting-label">Show front matter panel</span>
+                    <span class="setting-description">Display parsed YAML metadata above the rendered document.</span>
                   </span>
                   <span class="setting-control">
                     <input id="markdown-frontmatter-visible" type="checkbox" checked>
@@ -129,8 +148,8 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Start open</span>
-                    <span class="setting-description">Open the front matter panel by default.</span>
+                    <span class="setting-label">Expand panel by default</span>
+                    <span class="setting-description">Open the front matter panel automatically when a Markdown file loads.</span>
                   </span>
                   <span class="setting-control">
                     <input id="markdown-frontmatter-expanded" type="checkbox" checked>
@@ -139,25 +158,27 @@
                 </label>
                 <label class="setting-row setting-row-checkbox">
                   <span class="setting-meta">
-                    <span class="setting-label">Use title as heading</span>
-                    <span class="setting-description">Promote front matter <code>title</code> to an H1 when the document has none.</span>
+                    <span class="setting-label">Use front matter title as H1</span>
+                    <span class="setting-description">Insert a top-level heading from <code>title</code> when the document does not already have one.</span>
                   </span>
                   <span class="setting-control">
                     <input id="markdown-frontmatter-title" type="checkbox" checked>
                     <span>Enabled</span>
                   </span>
                 </label>
+                </div>
               </div>
             </section>
 
             <section class="settings-block">
               <div class="settings-block-header">
-                <h2>Runtime Log</h2>
+                <h2>Diagnostics</h2>
                 <div class="settings-block-actions">
                   <button id="copy-logs" type="button">Copy log</button>
                   <button id="clear-logs" type="button">Clear log</button>
                 </div>
               </div>
+              <p class="settings-block-copy">Recent runtime events and debug output from the DPview server.</p>
               <textarea id="logs" class="log-output" aria-live="polite" readonly spellcheck="false"></textarea>
             </section>
           </div>
@@ -165,7 +186,7 @@
       </aside>
 
       <main class="main">
-        <button id="show-sidebar" class="show-sidebar hidden" type="button">Files</button>
+        <button id="show-sidebar" class="show-sidebar hidden" type="button">Show</button>
         <div id="connection-banner" class="connection-banner hidden" role="alert" aria-live="assertive">
           <span id="connection-message"></span>
           <button id="retry-connection" type="button">Retry now</button>
@@ -185,8 +206,6 @@
         </section>
       </main>
     </div>
-    <script src="/vendor/katex/katex.min.js" defer></script>
-    <script src="/vendor/katex/contrib/auto-render.min.js" defer></script>
     <script src="/app.js" type="module"></script>
   </body>
   </html>

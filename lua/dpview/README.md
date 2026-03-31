@@ -31,6 +31,7 @@ The plugin resolves the DPview command in this order:
       theme = "dark",
       preview_theme = "github",
       cursor_seek = true,
+      latex_enabled = true,
       typst_preview_theme = false,
       markdown_frontmatter_visible = true,
       markdown_frontmatter_expanded = true,
@@ -55,6 +56,7 @@ use({
       theme = "dark",
       preview_theme = "github",
       cursor_seek = true,
+      latex_enabled = true,
       typst_preview_theme = false,
       markdown_frontmatter_visible = true,
       markdown_frontmatter_expanded = true,
@@ -78,6 +80,7 @@ require("dpview").setup({
   sidebar_collapsed = true,
   theme = "dark",
   preview_theme = "github",
+  latex_enabled = true,
   typst_preview_theme = false,
   markdown_frontmatter_visible = true,
   markdown_frontmatter_expanded = true,
@@ -103,6 +106,7 @@ require("dpview").setup({
   cursor_seek_debounce_ms = 80,
   live_buffer_preview = false,
   live_buffer_preview_debounce_ms = 200,
+  latex_enabled = true,
   typst_preview_theme = true,
   markdown_frontmatter_visible = true,
   markdown_frontmatter_expanded = true,
@@ -127,6 +131,7 @@ Options:
 - `cursor_seek_debounce_ms`: debounce delay for cursor/viewport seek updates
 - `live_buffer_preview`: enable unsaved buffer preview updates while typing
 - `live_buffer_preview_debounce_ms`: idle delay before sending a live buffer preview update; defaults to `200`
+- `latex_enabled`: enable Markdown LaTeX math rendering and on-demand KaTeX loading in the web preview
 - `log_level`: DPview server log level, one of `debug`, `info`, or `error`
 - `typst_preview_theme`: when false, DPview renders Typst sources directly without injecting preview theme tokens
 - `markdown_frontmatter_visible`: show parsed YAML front matter above Markdown previews
@@ -163,10 +168,11 @@ Options:
 - File following can be controlled from Neovim config through `editor_file_sync` and at runtime through `:DPviewFileSyncEnable`, `:DPviewFileSyncDisable`, and `:DPviewFileSyncToggle`.
 - Seeking can be controlled from Neovim config through `cursor_seek` and at runtime through `:DPviewSeekEnable`, `:DPviewSeekDisable`, and `:DPviewSeekToggle`.
 - Live preview can be controlled from Neovim config through `live_buffer_preview` and at runtime through `:DPviewLivePreviewEnable`, `:DPviewLivePreviewDisable`, and `:DPviewLivePreviewToggle`.
+- LaTeX math rendering can be controlled from Neovim config through `latex_enabled`.
 - Typst preview theming can be disabled from Neovim config through `typst_preview_theme`.
 - Markdown front matter behavior can be controlled from Neovim config through `markdown_frontmatter_visible`, `markdown_frontmatter_expanded`, and `markdown_frontmatter_title`.
 - Sidebar state can be controlled from Neovim config through `sidebar_collapsed`.
 - Sidebar, sync, and theme values are passed to DPview at startup with `--sidebar-closed`,
-  `--editor-file-sync`, `--live-buffer-preview`, `--seek-enabled`, `--theme`,
+  `--editor-file-sync`, `--live-buffer-preview`, `--seek-enabled`, `--latex-enabled`, `--theme`,
   `--preview-theme`, `--typst-preview-theme`, `--markdown-frontmatter-visible`,
   `--markdown-frontmatter-expanded`, and `--markdown-frontmatter-title`.

@@ -114,6 +114,7 @@ type Settings struct {
 	EditorFileSyncEnabled       bool   `json:"editor_file_sync_enabled"`
 	LiveBufferPreviewEnabled    bool   `json:"live_buffer_preview_enabled"`
 	SeekEnabled                 bool   `json:"seek_enabled"`
+	LatexEnabled                bool   `json:"latex_enabled"`
 	TypstPreviewTheme           bool   `json:"typst_preview_theme"`
 	MarkdownFrontMatterVisible  bool   `json:"markdown_frontmatter_visible"`
 	MarkdownFrontMatterExpanded bool   `json:"markdown_frontmatter_expanded"`
@@ -128,6 +129,7 @@ type SettingsPatch struct {
 	EditorFileSyncEnabled       *bool   `json:"editor_file_sync_enabled,omitempty"`
 	LiveBufferPreviewEnabled    *bool   `json:"live_buffer_preview_enabled,omitempty"`
 	SeekEnabled                 *bool   `json:"seek_enabled,omitempty"`
+	LatexEnabled                *bool   `json:"latex_enabled,omitempty"`
 	TypstPreviewTheme           *bool   `json:"typst_preview_theme,omitempty"`
 	MarkdownFrontMatterVisible  *bool   `json:"markdown_frontmatter_visible,omitempty"`
 	MarkdownFrontMatterExpanded *bool   `json:"markdown_frontmatter_expanded,omitempty"`

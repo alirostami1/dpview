@@ -186,6 +186,7 @@ function M.start(state, callback)
     "--editor-file-sync=" .. tostring(state.config.editor_file_sync),
     "--live-buffer-preview=" .. tostring(state.config.live_buffer_preview),
     "--seek-enabled=" .. tostring(state.config.cursor_seek),
+    "--latex-enabled=" .. tostring(state.config.latex_enabled),
     "--theme",
     state.config.theme,
     "--preview-theme",

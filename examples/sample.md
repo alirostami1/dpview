@@ -65,4 +65,5 @@ Footnotes now render in the preview.[^intro] Repeated references should also wor
 The same note can be referenced more than once in the same document.[^repeat]
 
 [^intro]: This footnote demonstrates the standard Goldmark footnote syntax.
+
 [^repeat]: This shared footnote shows backlink handling for repeated references.

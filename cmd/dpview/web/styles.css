@@ -1,5 +1,5 @@
 :root {
-  --sidebar-width: 380px;
+  --sidebar-width: 50ch;
   --border: #d0d0d0;
   --text: #111;
   --muted: #666;
@@ -200,17 +200,25 @@ select {
 }
 
 .connection-banner {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
   background: color-mix(in srgb, var(--surface) 88%, #f5c542 12%);
 }
 
 body[data-theme="dark"] .connection-banner {
   background: color-mix(in srgb, var(--surface) 84%, #7a5a14 16%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
 }
 
 .connection-banner button {
@@ -235,6 +243,17 @@ body[data-theme="dark"] .connection-banner {
 .preview-content.markdown-preview {
   width: 100%;
   padding: 1.5rem;
+}
+
+.preview-content.markdown-preview .preview-server-html {
+  width: min(100%, 80ch);
+  margin: 0 auto;
+}
+
+.preview-content.markdown-preview .frontmatter-panel {
+  width: min(100%, 80ch);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .preview-content.typst-preview {
@@ -396,6 +415,13 @@ body[data-theme="dark"] .connection-banner {
   font-size: 1rem;
 }
 
+.settings-block-copy {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+
 .settings-block {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -410,6 +436,12 @@ body[data-theme="dark"] .connection-banner {
   margin-top: 1.25rem;
 }
 
+.settings-subgroup {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
 .settings-group h3 {
   margin: 0 0 0.35rem;
   color: var(--muted);
@@ -417,6 +449,19 @@ body[data-theme="dark"] .connection-banner {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.settings-subgroup h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.settings-group-copy {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.9em;
+  line-height: 1.4;
 }
 
 .status {
@@ -533,6 +578,9 @@ body[data-theme="dark"] .status-item-error {
   }
 
   .connection-banner {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
     align-items: flex-start;
     flex-direction: column;
   }

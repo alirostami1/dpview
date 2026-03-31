@@ -3,6 +3,7 @@ import { applyPreviewSeek } from "./seek";
 import { encodeAppPath, parseRoute } from "./routes";
 import { apiFetch } from "./api";
 import { requiredElement, requiredSelector } from "./dom";
+import { renderMarkdownMath as renderLatexMath } from "./latex";
 import {
     applyCurrent as applyCurrentState,
     applyFiles as applyFilesState,
@@ -51,36 +52,7 @@ import {
 } from "./contracts";
 import { readStoredJSON, readStoredString, STORAGE } from "./storage";
 import { parseEventData } from "./validation";
-import type {
-    ApiResult,
-    CurrentData,
-    LogData,
-    PreviewTheme,
-    ResolvedTheme,
-    SettingsData,
-    SettingsPayload,
-    StoredTheme,
-} from "./types";
-
-declare const katex:
-    | {
-        render: (
-            expression: string,
-            element: Element,
-            options: { displayMode: boolean; throwOnError: boolean },
-        ) => void;
-    }
-    | undefined;
-
-declare const renderMathInElement:
-    | ((
-        element: Element,
-        options: {
-            delimiters: Array<{ left: string; right: string; display: boolean }>;
-            throwOnError: boolean;
-        },
-    ) => void)
-    | undefined;
+import type { ApiResult, CurrentData, LogData, PreviewTheme, ResolvedTheme, SettingsData, SettingsPayload, StoredTheme } from "./types";
 
 const systemThemeMedia =
     window.matchMedia?.("(prefers-color-scheme: dark)") || null;
@@ -112,6 +84,7 @@ const elements: Elements = {
     editorFileSyncInput: requiredElement<HTMLInputElement>("editor-file-sync"),
     liveBufferPreviewInput: requiredElement<HTMLInputElement>("live-buffer-preview"),
     seekEnabledInput: requiredElement<HTMLInputElement>("seek-enabled"),
+    latexEnabledInput: requiredElement<HTMLInputElement>("latex-enabled"),
     markdownFrontMatterVisibleInput: requiredElement<HTMLInputElement>("markdown-frontmatter-visible"),
     markdownFrontMatterExpandedInput: requiredElement<HTMLInputElement>("markdown-frontmatter-expanded"),
     markdownFrontMatterTitleInput: requiredElement<HTMLInputElement>("markdown-frontmatter-title"),
@@ -138,6 +111,7 @@ const state: State = {
         editor_file_sync_enabled: true,
         live_buffer_preview_enabled: false,
         seek_enabled: true,
+        latex_enabled: true,
         typst_preview_theme: true,
         markdown_frontmatter_visible: true,
         markdown_frontmatter_expanded: true,
@@ -160,12 +134,16 @@ const state: State = {
     lastError: "",
     connectionStatus: "connecting",
     connectionAttempts: 0,
+    reconnectAt: 0,
     bootstrapFailed: false,
     pendingSeekFrame: 0,
 };
 
 let eventSource: EventSource | null = null;
 let reconnectTimer = 0;
+let reconnectCountdownTimer = 0;
+let lastLatexLoadError = "";
+let forceMarkdownPreviewReplace = false;
 
 initializeUI();
 bindUIEvents();
@@ -361,6 +339,20 @@ function bindUIEvents(): void {
             applySeekState(state, null);
         } else {
             queueApplySeek();
+        }
+        updateStatus("Settings updated.");
+    });
+
+    elements.latexEnabledInput.addEventListener("change", async () => {
+        const previous = state.settings.latex_enabled;
+        state.settings.latex_enabled = elements.latexEnabledInput.checked;
+        forceMarkdownPreviewReplace = true;
+        const result = await syncSettings({ rerenderMarkdown: state.current?.file?.kind === "markdown" });
+        if (!result.ok) {
+            state.settings.latex_enabled = previous;
+            elements.latexEnabledInput.checked = previous;
+            forceMarkdownPreviewReplace = false;
+            return;
         }
         updateStatus("Settings updated.");
     });
@@ -627,6 +619,7 @@ function renderSettingsUI(): void {
     elements.editorFileSyncInput.checked = state.settings.editor_file_sync_enabled;
     elements.liveBufferPreviewInput.checked = state.settings.live_buffer_preview_enabled;
     elements.seekEnabledInput.checked = state.settings.seek_enabled;
+    elements.latexEnabledInput.checked = state.settings.latex_enabled;
     elements.typstPreviewThemeInput.checked = state.settings.typst_preview_theme;
     elements.markdownFrontMatterVisibleInput.checked = state.settings.markdown_frontmatter_visible;
     elements.markdownFrontMatterExpandedInput.checked = state.settings.markdown_frontmatter_expanded;
@@ -637,25 +630,15 @@ function renderMarkdownMath(container: Element | null): void {
     if (!container) {
         return;
     }
-    if (typeof katex?.render === "function") {
-        for (const node of container.querySelectorAll(".markdown-math-block")) {
-            katex.render(node.getAttribute("data-latex") || "", node, {
-                displayMode: true,
-                throwOnError: false,
-            });
+    void renderLatexMath(container, state.settings.latex_enabled).then((result) => {
+        if (result.kind !== "failed") {
+            return;
         }
-    }
-    if (typeof renderMathInElement !== "function") {
-        return;
-    }
-    renderMathInElement(container, {
-        delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "$", right: "$", display: false },
-            { left: "\\(", right: "\\)", display: false },
-            { left: "\\[", right: "\\]", display: true },
-        ],
-        throwOnError: false,
+        if (result.error.message === lastLatexLoadError) {
+            return;
+        }
+        lastLatexLoadError = result.error.message;
+        setClientError(result.error.message);
     });
 }
 
@@ -666,6 +649,7 @@ function currentSettingsPayload(): SettingsPayload {
         editor_file_sync_enabled: state.settings.editor_file_sync_enabled,
         live_buffer_preview_enabled: state.settings.live_buffer_preview_enabled,
         seek_enabled: state.settings.seek_enabled,
+        latex_enabled: state.settings.latex_enabled,
         typst_preview_theme: state.settings.typst_preview_theme,
         markdown_frontmatter_visible: state.settings.markdown_frontmatter_visible,
         markdown_frontmatter_expanded: state.settings.markdown_frontmatter_expanded,
@@ -722,9 +706,10 @@ function applyCurrent(data: CurrentData): void {
     localStorage.setItem(STORAGE.currentPath, path);
     syncLocationPath(path);
     renderTreeUI();
-    if (morphMarkdownPreview(previousCurrent, state.current)) {
+    if (!forceMarkdownPreviewReplace && morphMarkdownPreview(previousCurrent, state.current)) {
         queueApplySeek();
     } else {
+        forceMarkdownPreviewReplace = false;
         renderPreviewUI();
     }
     if (previousLocalSelection && previousLocalSelection !== path) {
@@ -852,6 +837,7 @@ function connectEvents(): void {
 function startEventStream(attempt: number): void {
     setConnectionState(state, "connecting", attempt);
     renderStatus(elements, state);
+    renderConnectionBanner(elements, state);
 
     const source = new EventSource("/events");
     eventSource = source;
@@ -941,12 +927,15 @@ function scheduleReconnect(source: EventSource, attempt: number): void {
     if (eventSource === source) {
         eventSource = null;
     }
-    setConnectionState(state, "degraded", attempt);
+    const delay = reconnectDelayMs(attempt);
+    const reconnectAt = Date.now() + delay;
+    setConnectionState(state, "degraded", attempt, reconnectAt);
     renderStatus(elements, state);
     renderConnectionBanner(elements, state);
     window.clearTimeout(reconnectTimer);
-    const delay = Math.min(1000 * Math.max(1, attempt), 5000);
+    startReconnectCountdown();
     reconnectTimer = window.setTimeout(() => {
+        stopReconnectCountdown();
         startEventStream(attempt);
     }, delay);
 }
@@ -957,6 +946,33 @@ function closeEventStream(): void {
         eventSource = null;
     }
     window.clearTimeout(reconnectTimer);
+    stopReconnectCountdown();
+}
+
+function reconnectDelayMs(attempt: number): number {
+    const base = 1000;
+    const step = Math.max(0, attempt - 1);
+    return Math.min(base * (2 ** step), 60_000);
+}
+
+function startReconnectCountdown(): void {
+    stopReconnectCountdown();
+    reconnectCountdownTimer = window.setInterval(() => {
+        if (state.connectionStatus !== "degraded") {
+            stopReconnectCountdown();
+            return;
+        }
+        renderStatus(elements, state);
+        renderConnectionBanner(elements, state);
+    }, 1000);
+}
+
+function stopReconnectCountdown(): void {
+    if (!reconnectCountdownTimer) {
+        return;
+    }
+    window.clearInterval(reconnectCountdownTimer);
+    reconnectCountdownTimer = 0;
 }
 
 function fileExists(path: string): boolean {

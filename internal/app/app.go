@@ -541,7 +541,7 @@ func normalizeSeek(path string, seek api.SeekData) api.SeekData {
 }
 
 func describeSettingsPatch(patch api.SettingsPatch) string {
-	parts := make([]string, 0, 11)
+	parts := make([]string, 0, 12)
 	appendBool := func(name string, value *bool) {
 		if value != nil {
 			parts = append(parts, fmt.Sprintf("%s=%t", name, *value))
@@ -557,6 +557,7 @@ func describeSettingsPatch(patch api.SettingsPatch) string {
 	appendBool("editor_file_sync_enabled", patch.EditorFileSyncEnabled)
 	appendBool("live_buffer_preview_enabled", patch.LiveBufferPreviewEnabled)
 	appendBool("seek_enabled", patch.SeekEnabled)
+	appendBool("latex_enabled", patch.LatexEnabled)
 	appendBool("typst_preview_theme", patch.TypstPreviewTheme)
 	appendBool("markdown_frontmatter_visible", patch.MarkdownFrontMatterVisible)
 	appendBool("markdown_frontmatter_expanded", patch.MarkdownFrontMatterExpanded)

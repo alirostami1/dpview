@@ -111,7 +111,10 @@ func (r *markdownRenderer) renderPreparedMarkdown(source []byte, started time.Ti
 	if err := md.Renderer().Render(&out, body, doc); err != nil {
 		return api.Preview{}, err
 	}
-	rewritten := rewriteMarkdownDisplayMath(out.String())
+	rewritten := out.String()
+	if settings.LatexEnabled {
+		rewritten = rewriteMarkdownDisplayMath(rewritten)
+	}
 	safe := r.sanitize.SanitizeBytes([]byte(rewritten))
 	return api.Preview{
 		HTML:             `<article class="markdown-theme">` + titleHTML + string(safe) + `</article>`,
